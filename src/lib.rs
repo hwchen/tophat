@@ -64,7 +64,7 @@ mod tests {
 
     #[test]
     fn test_basic_request() {
-        smol::run(async {
+        smol::block_on(async {
             let testcase = TestCase { times_written: 0, write_buf: Arc::new(Mutex::new(vec![])) };
 
             let addr = "http://example.com";
