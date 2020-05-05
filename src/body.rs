@@ -13,6 +13,10 @@ enum Kind {
 }
 
 impl Body {
+    pub fn new(bytes: Bytes) -> Body {
+        Body { kind: Kind::Once(Some(bytes)) }
+    }
+
     pub fn empty() -> Body {
         Body { kind: Kind::Once(None) }
     }
@@ -20,6 +24,12 @@ impl Body {
     fn poll_inner(&mut self, _cx: &mut Context<'_>) -> Poll<Option<http::Result<Bytes>>> {
         match self.kind {
             Kind::Once(ref mut val) => Poll::Ready(val.take().map(Ok)),
+        }
+    }
+
+    pub fn as_bytes(&self) -> http::Result<Option<Bytes>> {
+        match self.kind {
+            Kind::Once(ref b) => Ok(b.clone()),
         }
     }
 }
