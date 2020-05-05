@@ -6,35 +6,33 @@ mod encode;
 
 use futures_core::Future;
 use futures_io::{AsyncRead, AsyncWrite};
-use http::Request as HttpRequest;
+use http::{Request as HttpRequest, Response as HttpResponse};
 
 use crate::body::Body;
 use crate::decode::decode;
 use crate::encode::Encoder;
 
+// Make these not-generic over body for now
 type Request = HttpRequest<Body>;
+type Response = HttpResponse<Body>;
 
-pub struct Response<RW>
+pub struct ResponseWriter<RW>
 where
     RW: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
 {
-    pub body: Option<Body>,
     pub writer: RW,
 }
 
-impl<RW> Response<RW>
+impl<RW> ResponseWriter<RW>
 where
     RW: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
 {
-    pub fn with_body(&mut self, body: Body) {
-        self.body = Some(body)
-    }
-
+    // TODO try #[must_use] here
     /// send response, and return number of bytes written (I guess this would be a struct for more
     /// complicated sends, like with compression)
-    pub async fn send(self) -> http::Result<usize> {
+    pub async fn send(self, resp: Response) -> http::Result<usize> {
         let mut writer = self.writer;
-        let mut encoder = Encoder::encode(self.body.unwrap());
+        let mut encoder = Encoder::encode(resp.body());
         futures_util::io::copy(&mut encoder, &mut writer).await.unwrap();
         Ok(0)
     }
@@ -44,13 +42,13 @@ where
 pub async fn accept<RW, F, Fut>(addr: &str, io: RW, endpoint: F) -> http::Result<()>
 where
     RW: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
-    F: Fn(Request, Response<RW>) -> Fut,
+    F: Fn(Request, ResponseWriter<RW>) -> Fut,
     Fut: Future<Output = http::Result<()>>,
 {
     // first decode
     let req = decode(addr, io.clone()).await?.unwrap();
-    let resp = Response { body: None, writer: io };
-    endpoint(req, resp).await?;
+    let resp_wtr = ResponseWriter { writer: io };
+    endpoint(req, resp_wtr).await?;
 
     Ok(())
 }
@@ -61,6 +59,7 @@ mod tests {
 
     use bytes::Bytes;
     use std::sync::{Arc, Mutex};
+    use http::Response as HttpResponse;
 
     #[test]
     fn test_basic_request() {
@@ -68,13 +67,15 @@ mod tests {
             let testcase = TestCase { times_written: 0, write_buf: Arc::new(Mutex::new(vec![])) };
 
             let addr = "http://example.com";
-            accept(addr, testcase.clone(), |req, mut res| async move {
+            accept(addr, testcase.clone(), |req, resp_wtr| async move {
                 let body_bytes = req.body().as_bytes().unwrap().unwrap();
                 let body = std::str::from_utf8(&*body_bytes).unwrap();
-                let res_body = format!("Hello {}", body);
 
-                res.with_body(Body::new(Bytes::from(res_body.into_bytes())));
-                res.send().await.unwrap();
+                let res_body = format!("Hello {}", body);
+                let res_body = Body::new(Bytes::from(res_body.into_bytes()));
+
+                let resp = HttpResponse::new(res_body);
+                resp_wtr.send(resp).await.unwrap();
 
                 Ok(())
             })
@@ -109,7 +110,7 @@ mod tests {
             _cx: &mut Context,
             buf: &mut [u8],
         ) -> Poll<io::Result<usize>> {
-            let example = b"GET /foo/bar HTTP/1.1\r\nHost: example.org\r\nContent-Length: 6\r\n\r\ntophat".to_vec();
+            let example = b"GET /foo/bar HTTP/1.1\r\nHost: example.org\r\nContent-Length: 7\r\n\r\ntophat".to_vec();
             let len = example.len();
             io::Read::read(&mut std::io::Cursor::new(example), buf).unwrap();
             Poll::Ready(Ok(len))

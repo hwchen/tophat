@@ -4,15 +4,15 @@ use std::task::{Context, Poll};
 
 use crate::body::Body;
 
-pub struct Encoder {
-    body: Body,
+pub struct Encoder<'a> {
+    body: &'a Body,
     #[allow(dead_code)]
     bytes_read: usize, // for tracking total bytes read
     times_read: usize,
 }
 
-impl Encoder {
-    pub fn encode(body: Body) -> Self {
+impl<'a> Encoder<'a> {
+    pub fn encode(body: &'a Body) -> Self {
         Self {
             body,
             bytes_read: 0,
@@ -21,7 +21,7 @@ impl Encoder {
     }
 }
 
-impl AsyncRead for Encoder {
+impl<'a> AsyncRead for Encoder<'a> {
     fn poll_read(
         mut self: Pin<&mut Self>,
         _cx: &mut Context<'_>,
