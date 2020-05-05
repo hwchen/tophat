@@ -45,9 +45,15 @@ impl Body {
     }
 
     // TODO make errors
-    pub async fn into_bytes(mut self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    pub async fn into_bytes(mut self) -> Result<Vec<u8>, std::io::Error> {
         let mut buf = Vec::with_capacity(1024);
         self.read_to_end(&mut buf).await?;
+        Ok(buf)
+    }
+
+    pub async fn into_string(mut self) -> Result<String, std::io::Error> {
+        let mut buf = String::with_capacity(self.length.unwrap_or(0));
+        self.read_to_string(&mut buf).await?;
         Ok(buf)
     }
 }

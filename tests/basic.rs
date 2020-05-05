@@ -29,13 +29,11 @@ fn test_basic_request() {
 
         let addr = "http://example.com";
         accept(addr, testcase.clone(), |req, resp_wtr| async move {
-            let body_bytes = req.into_body().into_bytes().await.unwrap();
-            let body = std::str::from_utf8(&*body_bytes).unwrap();
+            let body = req.into_body().into_string().await.unwrap();
 
             let res_body = format!("Hello {}", body);
-            let res_body = Body::from_bytes(res_body.into_bytes());
 
-            let resp = HttpResponse::new(res_body);
+            let resp = HttpResponse::new(res_body.into());
             let done = resp_wtr.send(resp).await.unwrap();
 
             Ok(done)
