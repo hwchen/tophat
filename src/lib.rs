@@ -18,14 +18,14 @@ type Response = HttpResponse<Body>;
 
 pub struct ResponseWriter<RW>
 where
-    RW: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
+    RW: AsyncWrite + Clone + Send + Sync + Unpin + 'static,
 {
     pub writer: RW,
 }
 
 impl<RW> ResponseWriter<RW>
 where
-    RW: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
+    RW: AsyncWrite + Clone + Send + Sync + Unpin + 'static,
 {
     // TODO try #[must_use] here
     /// send response, and return number of bytes written (I guess this would be a struct for more
@@ -110,7 +110,7 @@ mod tests {
             _cx: &mut Context,
             buf: &mut [u8],
         ) -> Poll<io::Result<usize>> {
-            let example = b"GET /foo/bar HTTP/1.1\r\nHost: example.org\r\nContent-Length: 7\r\n\r\ntophat".to_vec();
+            let example = b"GET /foo/bar HTTP/1.1\r\nHost: example.org\r\nContent-Length: 6\r\n\r\ntophat".to_vec();
             let len = example.len();
             io::Read::read(&mut std::io::Cursor::new(example), buf).unwrap();
             Poll::Ready(Ok(len))
