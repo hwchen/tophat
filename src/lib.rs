@@ -30,20 +30,29 @@ where
     // TODO try #[must_use] here
     /// send response, and return number of bytes written (I guess this would be a struct for more
     /// complicated sends, like with compression)
-    pub async fn send(self, resp: Response) -> http::Result<usize> {
+    pub async fn send(self, resp: Response) -> http::Result<ResponseWritten> {
         let mut writer = self.writer;
         let mut encoder = Encoder::encode(resp.body());
         futures_util::io::copy(&mut encoder, &mut writer).await.unwrap();
-        Ok(0)
+        Ok(ResponseWritten)
     }
 }
+
+// is there a way to do a compile-time check here for whether resp_wtr.send() was called? Maybe
+// by creating a new type from it.
+// I guess the easy way is by a marker like ResponseWritten, which must be passed to the end of
+// the handler. But is this too unwieldy? Shouldn't be too bad.
+//
+// TODO have a ReponseResult, which may contain bytes read etc. And then have it transform into
+// ResponseWritten, to minimize boilerplate
+pub struct ResponseWritten;
 
 /// Accpet a new incoming Http/1.1 connection
 pub async fn accept<RW, F, Fut>(addr: &str, io: RW, endpoint: F) -> http::Result<()>
 where
     RW: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
     F: Fn(Request, ResponseWriter<RW>) -> Fut,
-    Fut: Future<Output = http::Result<()>>,
+    Fut: Future<Output = http::Result<ResponseWritten>>,
 {
     // first decode
     let req = decode(addr, io.clone()).await?.unwrap();
@@ -62,6 +71,26 @@ mod tests {
     use http::Response as HttpResponse;
 
     #[test]
+    fn test_response_written() {
+        smol::block_on(async {
+            let testcase = TestCase { times_written: 0, write_buf: Arc::new(Mutex::new(vec![])) };
+
+            let addr = "http://example.com";
+            accept(addr, testcase.clone(), |_req, resp_wtr| async move {
+                let resp = HttpResponse::new(Body::empty());
+                // Won't compile if done is not returned in Ok!
+                let done = resp_wtr.send(resp).await.unwrap();
+
+                Ok(done)
+            })
+            .await
+            .unwrap();
+
+            assert_eq!(testcase.out_string(), "Hello tophat".to_owned())
+        });
+    }
+
+    #[test]
     fn test_basic_request() {
         smol::block_on(async {
             let testcase = TestCase { times_written: 0, write_buf: Arc::new(Mutex::new(vec![])) };
@@ -75,9 +104,9 @@ mod tests {
                 let res_body = Body::new(Bytes::from(res_body.into_bytes()));
 
                 let resp = HttpResponse::new(res_body);
-                resp_wtr.send(resp).await.unwrap();
+                let done = resp_wtr.send(resp).await.unwrap();
 
-                Ok(())
+                Ok(done)
             })
             .await
             .unwrap();

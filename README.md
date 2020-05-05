@@ -12,6 +12,8 @@ instead of:
 async fn handler(req:Reqwest<Body>) -> Result<Response<Body>, Error>
 ```
 
+Works with any tcp stream that implements `futures::{AsyncRead, AsyncWrite}`. All dependencies are async-ecosystem independent.
+
 # Notes
 The inspiration: talking about using Sinks instead of Streams for sending, and how that can affect observability of responses.
 https://github.com/hyperium/hyper/issues/2181
