@@ -1,4 +1,3 @@
-use bytes::Bytes;
 use std::sync::{Arc, Mutex};
 use http::Response as HttpResponse;
 
@@ -30,11 +29,11 @@ fn test_basic_request() {
 
         let addr = "http://example.com";
         accept(addr, testcase.clone(), |req, resp_wtr| async move {
-            let body_bytes = req.body().as_bytes().unwrap().unwrap();
+            let body_bytes = req.into_body().into_bytes().await.unwrap();
             let body = std::str::from_utf8(&*body_bytes).unwrap();
 
             let res_body = format!("Hello {}", body);
-            let res_body = Body::new(Bytes::from(res_body.into_bytes()));
+            let res_body = Body::from_bytes(res_body.into_bytes());
 
             let resp = HttpResponse::new(res_body);
             let done = resp_wtr.send(resp).await.unwrap();
