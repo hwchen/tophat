@@ -1,3 +1,10 @@
+// TODO Handle all of the headers. See hyper src/proto/h1/role.rs
+// - transfer encoding
+// - connection
+// - expect
+// - upgrade
+// etc.
+
 use futures_io::AsyncRead;
 use futures_util::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
 use http::header::{HeaderName, HeaderValue, CONTENT_LENGTH};
