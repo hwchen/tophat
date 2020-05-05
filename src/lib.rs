@@ -5,6 +5,7 @@ mod decode;
 mod encode;
 mod request;
 mod response;
+mod util;
 
 use futures_core::Future;
 use futures_io::{AsyncRead, AsyncWrite};
