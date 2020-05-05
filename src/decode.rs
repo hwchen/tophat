@@ -1,4 +1,3 @@
-use bytes::Bytes;
 use futures_io::AsyncRead;
 use futures_util::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
 use http::{Request as HttpRequest, header::CONTENT_LENGTH};
@@ -48,11 +47,8 @@ where
     let content_length = content_length.unwrap();
     println!("content-length: {}", content_length);
 
-    let mut body_buf = Vec::new();
-    reader.take(content_length as u64).read_to_end(&mut body_buf).await.unwrap();
-    dbg!(&body_buf);
-    let body_bytes = Bytes::from(body_buf);
-    let req = HttpRequest::new(Body::new(body_bytes));
+    let body = reader.take(content_length as u64);
+    let req = HttpRequest::new(Body::from_reader(body, Some(content_length)));
 
     Ok(Some(req))
 }

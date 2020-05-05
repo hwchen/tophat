@@ -5,7 +5,15 @@ use crate::body::Body;
 use crate::encode::Encoder;
 
 /// Currently, Response is not generic over Body type
-type Response = HttpResponse<Body>;
+pub type Response = HttpResponse<Body>;
+
+pin_project_lite::pin_project! {
+    pub(crate) struct InnerResponse {
+        resp: HttpResponse<()>,
+        #[pin]
+        pub(crate)body: Body,
+    }
+}
 
 pub struct ResponseWriter<RW>
 where
@@ -23,7 +31,12 @@ where
     /// complicated sends, like with compression)
     pub async fn send(self, resp: Response) -> http::Result<ResponseWritten> {
         let mut writer = self.writer;
-        let mut encoder = Encoder::encode(resp.body());
+
+        let inner_resp = InnerResponse {
+            resp: HttpResponse::new(()), // just copy metadata over
+            body: resp.into_body(),
+        };
+        let mut encoder = Encoder::encode(inner_resp);
         futures_util::io::copy(&mut encoder, &mut writer).await.unwrap();
         Ok(ResponseWritten)
     }

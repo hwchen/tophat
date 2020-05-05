@@ -1,69 +1,160 @@
-use bytes::Bytes;
+use futures_io::{AsyncRead, AsyncBufRead};
+use futures_util::io::AsyncReadExt;
+use mime::{self, Mime};
+use std::io;
 use std::pin::Pin;
 use std::task::{Context, Poll};
-use http::HeaderMap;
-use http_body::{Body as HttpBody, SizeHint};
 
-pub struct Body {
-    kind: Kind,
-}
-
-enum Kind {
-    Once(Option<Bytes>),
+pin_project_lite::pin_project! {
+    pub struct Body {
+        #[pin]
+        reader: Box<dyn AsyncBufRead + Unpin + Send + Sync + 'static>,
+        mime: Mime,
+        length: Option<usize>,
+    }
 }
 
 impl Body {
-    pub fn new(bytes: Bytes) -> Body {
-        Body { kind: Kind::Once(Some(bytes)) }
-    }
-
-    pub fn empty() -> Body {
-        Body { kind: Kind::Once(None) }
-    }
-
-    fn poll_inner(&mut self, _cx: &mut Context<'_>) -> Poll<Option<http::Result<Bytes>>> {
-        match self.kind {
-            Kind::Once(ref mut val) => Poll::Ready(val.take().map(Ok)),
+    pub fn empty() -> Self {
+        Self {
+            reader: Box::new(empty()),
+            mime: mime::APPLICATION_OCTET_STREAM,
+            length: Some(0),
         }
     }
 
-    pub fn as_bytes(&self) -> http::Result<Option<Bytes>> {
-        match self.kind {
-            Kind::Once(ref b) => Ok(b.clone()),
+    pub fn from_reader(
+        reader: impl AsyncBufRead + Unpin + Send + Sync + 'static,
+        len: Option<usize>,
+    ) -> Self {
+        Self {
+            reader: Box::new(reader),
+            mime: mime::APPLICATION_OCTET_STREAM,
+            length: len,
+        }
+    }
+
+    pub fn from_bytes(bytes: Vec<u8>) -> Self {
+        Self {
+            length: Some(bytes.len()),
+            reader: Box::new(Cursor::new(bytes)),
+            mime: mime::APPLICATION_OCTET_STREAM,
+        }
+    }
+
+    // TODO make errors
+    pub async fn into_bytes(mut self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+        let mut buf = Vec::with_capacity(1024);
+        self.read_to_end(&mut buf).await?;
+        Ok(buf)
+    }
+}
+
+impl From<String> for Body {
+    fn from(s: String) -> Self {
+        Self {
+            length: Some(s.len()),
+            reader: Box::new(Cursor::new(s.into_bytes())),
+            mime: mime::TEXT_PLAIN,
         }
     }
 }
 
-impl HttpBody for Body {
-    type Data = Bytes;
-    type Error = http::Error;
-
-    fn poll_data(
+impl AsyncRead for Body {
+    fn poll_read(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
-    ) -> Poll<Option<Result<Self::Data, Self::Error>>> {
-        self.poll_inner(cx)
+        buf: &mut [u8],
+    ) -> Poll<io::Result<usize>> {
+        Pin::new(&mut self.reader).poll_read(cx, buf)
+    }
+}
+
+impl AsyncBufRead for Body {
+    fn poll_fill_buf(self: Pin<&mut Self>, cx: &mut Context<'_>,) -> Poll<io::Result<&'_ [u8]>> {
+        let this = self.project();
+        this.reader.poll_fill_buf(cx)
     }
 
-    fn poll_trailers(
+    fn consume(mut self: Pin<&mut Self>, amt: usize) {
+        Pin::new(&mut self.reader).consume(amt)
+    }
+}
+
+struct Cursor<T> {
+    inner: std::io::Cursor<T>,
+}
+
+impl<T> Cursor<T> {
+    fn new(t: T) -> Self {
+        Self {
+            inner: std::io::Cursor::new(t),
+        }
+    }
+}
+
+impl<T> AsyncRead for Cursor<T>
+where
+    T: AsRef<[u8]> + Unpin,
+{
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        _cx: &mut Context<'_>,
+        buf: &mut [u8],
+    ) -> Poll<std::io::Result<usize>> {
+        Poll::Ready(std::io::Read::read(&mut self.inner, buf))
+    }
+
+    fn poll_read_vectored(
+        mut self: Pin<&mut Self>,
+        _cx: &mut Context<'_>,
+        bufs: &mut [std::io::IoSliceMut<'_>],
+    ) -> Poll<std::io::Result<usize>> {
+        Poll::Ready(std::io::Read::read_vectored(&mut self.inner, bufs))
+    }
+}
+
+impl<T> AsyncBufRead for Cursor<T>
+where
+    T: AsRef<[u8]> + Unpin,
+{
+    fn poll_fill_buf(self: Pin<&mut Self>, _cx: &mut Context<'_>,) -> Poll<io::Result<&'_ [u8]>> {
+        Poll::Ready(std::io::BufRead::fill_buf(&mut self.get_mut().inner))
+    }
+
+    fn consume(mut self: Pin<&mut Self>, amt: usize) {
+        std::io::BufRead::consume(&mut self.inner, amt)
+    }
+}
+
+struct Empty;
+
+fn empty() -> Empty {
+    Empty
+}
+
+impl AsyncRead for Empty {
+    fn poll_read(
         self: Pin<&mut Self>,
         _cx: &mut Context<'_>,
-    ) -> Poll<Result<Option<HeaderMap>, Self::Error>> {
-        match self.kind {
-            _ => Poll::Ready(Ok(None)),
-        }
+        _buf: &mut [u8],
+    ) -> Poll<std::io::Result<usize>> {
+        Poll::Ready(Ok(0))
     }
 
-    fn is_end_stream(&self) -> bool {
-        match self.kind {
-            Kind::Once(ref val) => val.is_none(),
-        }
+    fn poll_read_vectored(
+        self: Pin<&mut Self>,
+        _cx: &mut Context<'_>,
+        _bufs: &mut [std::io::IoSliceMut<'_>],
+    ) -> Poll<std::io::Result<usize>> {
+        Poll::Ready(Ok(0))
+    }
+}
+
+impl AsyncBufRead for Empty {
+    fn poll_fill_buf(self: Pin<&mut Self>, _cx: &mut Context<'_>,) -> Poll<io::Result<&'_ [u8]>> {
+        Poll::Ready(Ok(&[]))
     }
 
-    fn size_hint(&self) -> SizeHint {
-        match self.kind {
-            Kind::Once(Some(ref val)) => SizeHint::with_exact(val.len() as u64),
-            Kind::Once(None) => SizeHint::with_exact(0),
-        }
-    }
+    fn consume(self: Pin<&mut Self>, _amt: usize) {}
 }
