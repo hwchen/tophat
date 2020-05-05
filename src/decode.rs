@@ -8,7 +8,7 @@ use crate::Request;
 
 const LF: u8 = b'\n';
 
-pub(crate) async fn decode<R>(_addr: &str, reader: R) -> http::Result<Option<Request>>
+pub(crate) async fn decode<R>(addr: &str, reader: R) -> http::Result<Option<Request>>
 where
     R: AsyncRead + Unpin + Send + Sync + 'static
 {
@@ -39,8 +39,12 @@ where
     // TODO error type
     if status.is_partial() { panic!("Malformed Header") }
 
+
+    // TODO remove allocation
+    let path = httparse_req.path.unwrap();
+    let uri: Uri = format!("{}{}", addr, path).parse().unwrap();
+
     let method = http::Method::from_bytes(httparse_req.method.unwrap().as_bytes()).unwrap();
-    let uri: Uri = httparse_req.path.unwrap().parse().unwrap();
     let version = if httparse_req.version.unwrap() == 1 {
         //TODO keep_alive = true, is_http_11 = true
         http::Version::HTTP_11
