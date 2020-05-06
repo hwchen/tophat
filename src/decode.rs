@@ -11,7 +11,7 @@ use http::header::{HeaderName, HeaderValue, CONTENT_LENGTH};
 use http::uri::Uri;
 
 use crate::body::Body;
-use crate::{Result, Request};
+use crate::{Error, Result, Request};
 
 const LF: u8 = b'\n';
 
@@ -41,18 +41,18 @@ where
     }
 
     // Convert our header buf into an httparse instance, and validate.
-    let status = httparse_req.parse(&buf).expect("Error parsing http header");
+    let status = httparse_req.parse(&buf)?;
 
     // TODO error type
     if status.is_partial() { panic!("Malformed Header") }
 
 
     // TODO remove allocation
-    let path = httparse_req.path.expect("no path");
-    let uri: Uri = format!("{}{}", addr, path).parse().expect("error parsing uri");
+    let path = httparse_req.path.ok_or(Error::HttpNoPath)?;
+    let uri: Uri = format!("{}{}", addr, path).parse()?;
 
-    let method = http::Method::from_bytes(httparse_req.method.expect("no method").as_bytes()).expect("error parsing method from bytes");
-    let version = if httparse_req.version.expect("no version") == 1 {
+    let method = http::Method::from_bytes(httparse_req.method.ok_or(Error::HttpNoMethod)?.as_bytes())?;
+    let version = if httparse_req.version.ok_or(Error::HttpNoVersion)? == 1 {
         //TODO keep_alive = true, is_http_11 = true
         http::Version::HTTP_11
     } else {
@@ -72,14 +72,18 @@ where
     let mut content_length = None;
     for header in httparse_req.headers.iter() {
         if header.name == CONTENT_LENGTH {
-            content_length = Some(std::str::from_utf8(header.value).expect("not utf8").parse::<usize>().expect("parse error"));
+            content_length = Some(
+                std::str::from_utf8(header.value)
+                .map_err(|_| Error::HttpInvalidContentLength)?
+                .parse::<usize>()
+                .map_err(|_| Error::HttpInvalidContentLength)?
+            );
         }
 
-        req.headers_mut()
-            .expect("error getting headers_mut")
+        req.headers_mut().expect("Request builder error")
             .append(
-                HeaderName::from_bytes(header.name.as_bytes()).expect("HeaderName parse error"),
-                HeaderValue::from_bytes(header.value).expect("headervalue parse error")
+                HeaderName::from_bytes(header.name.as_bytes())?,
+                HeaderValue::from_bytes(header.value)?
             );
     }
 
@@ -90,8 +94,7 @@ where
 
     let body = reader.take(content_length as u64);
     let req = req
-        .body(Body::from_reader(body, Some(content_length)))
-        .expect("Error making body");
+        .body(Body::from_reader(body, Some(content_length)))?;
 
     Ok(Some(req))
 }

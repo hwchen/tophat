@@ -22,7 +22,7 @@ pub async fn accept<RW, F, Fut>(addr: &str, io: RW, endpoint: F) -> Result<()>
 where
     RW: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
     F: Fn(Request, ResponseWriter<RW>) -> Fut,
-    Fut: Future<Output = http::Result<ResponseWritten>>,
+    Fut: Future<Output = Result<ResponseWritten>>,
 {
     loop {
         // decode to Request

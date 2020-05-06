@@ -3,6 +3,7 @@ use http::Response as HttpResponse;
 
 use crate::body::Body;
 use crate::encode::Encoder;
+use crate::error::Result;
 
 /// Currently, Response is not generic over Body type
 pub type Response = HttpResponse<Body>;
@@ -27,10 +28,9 @@ impl<RW> ResponseWriter<RW>
 where
     RW: AsyncWrite + Clone + Send + Sync + Unpin + 'static,
 {
-    // TODO try #[must_use] here
-    /// send response, and return number of bytes written (I guess this would be a struct for more
+    /// send response, and TODO return number of bytes written (I guess this would be a struct for more
     /// complicated sends, like with compression)
-    pub async fn send(self, resp: Response) -> http::Result<ResponseWritten> {
+    pub async fn send(self, resp: Response) -> Result<ResponseWritten> {
         let mut writer = self.writer;
 
         let inner_resp = InnerResponse {
@@ -38,7 +38,7 @@ where
             body: resp.into_body(),
         };
         let mut encoder = Encoder::encode(inner_resp);
-        futures_util::io::copy(&mut encoder, &mut writer).await.unwrap();
+        futures_util::io::copy(&mut encoder, &mut writer).await?;
         Ok(ResponseWritten)
     }
 }
