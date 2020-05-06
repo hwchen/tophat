@@ -11,11 +11,11 @@ use http::header::{HeaderName, HeaderValue, CONTENT_LENGTH};
 use http::uri::Uri;
 
 use crate::body::Body;
-use crate::Request;
+use crate::{Result, Request};
 
 const LF: u8 = b'\n';
 
-pub(crate) async fn decode<R>(addr: &str, reader: R) -> http::Result<Option<Request>>
+pub(crate) async fn decode<R>(addr: &str, reader: R) -> Result<Option<Request>>
 where
     R: AsyncRead + Unpin + Send + Sync + 'static
 {
@@ -26,7 +26,7 @@ where
 
     // Keep reading bytes from the stream until we hit the end of the stream.
     loop {
-        let bytes_read = reader.read_until(LF, &mut buf).await.expect("Error reading");
+        let bytes_read = reader.read_until(LF, &mut buf).await?;
 
         // No more bytes are yielded from the stream.
         if bytes_read == 0 {

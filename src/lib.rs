@@ -4,6 +4,7 @@ mod body;
 mod date;
 mod decode;
 mod encode;
+mod error;
 mod request;
 mod response;
 mod util;
@@ -13,11 +14,12 @@ use futures_io::{AsyncRead, AsyncWrite};
 
 pub use crate::body::Body;
 use crate::decode::decode;
+pub use crate::error::{Error, Result};
 pub use crate::request::Request;
 pub use crate::response::{ResponseWriter, ResponseWritten};
 
 /// Accept a new incoming Http/1.1 connection
-pub async fn accept<RW, F, Fut>(addr: &str, io: RW, endpoint: F) -> http::Result<()>
+pub async fn accept<RW, F, Fut>(addr: &str, io: RW, endpoint: F) -> Result<()>
 where
     RW: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
     F: Fn(Request, ResponseWriter<RW>) -> Fut,
