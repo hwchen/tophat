@@ -9,7 +9,8 @@ pub type Response = HttpResponse<Body>;
 
 pin_project_lite::pin_project! {
     pub(crate) struct InnerResponse {
-        resp: HttpResponse<()>,
+        // Currently just copying over the head
+        pub(crate) head: HttpResponse<()>,
         #[pin]
         pub(crate)body: Body,
     }
@@ -33,7 +34,7 @@ where
         let mut writer = self.writer;
 
         let inner_resp = InnerResponse {
-            resp: HttpResponse::new(()), // just copy metadata over
+            head: HttpResponse::new(()), // just copy metadata over
             body: resp.into_body(),
         };
         let mut encoder = Encoder::encode(inner_resp);

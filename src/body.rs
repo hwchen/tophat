@@ -10,9 +10,9 @@ use crate::util::{empty, Cursor};
 pin_project_lite::pin_project! {
     pub struct Body {
         #[pin]
-        reader: Box<dyn AsyncBufRead + Unpin + Send + Sync + 'static>,
-        mime: Mime,
-        length: Option<usize>,
+        pub(crate) reader: Box<dyn AsyncBufRead + Unpin + Send + Sync + 'static>,
+        pub(crate) mime: Mime,
+        pub(crate) length: Option<usize>,
     }
 }
 
