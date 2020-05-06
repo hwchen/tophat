@@ -1,7 +1,6 @@
 // just the server for now
 
 mod body;
-mod date;
 mod decode;
 mod encode;
 mod error;

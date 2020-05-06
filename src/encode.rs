@@ -5,11 +5,11 @@
 // must have mucked up what the stream was reading back out.
 
 use futures_io::AsyncRead;
+use httpdate::fmt_http_date;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
 use crate::response::InnerResponse;
-use crate::date::fmt_http_date;
 
 pub(crate) struct Encoder {
     resp: InnerResponse,
