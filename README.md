@@ -22,3 +22,8 @@ async fn handler(req:Request) -> Result<Response, Error> {
 - Works with any tcp stream that implements `futures::{AsyncRead, AsyncWrite}`.
 - All dependencies are async-ecosystem independent.
 - Fast enough.
+
+# Upcoming
+- Transfer-encoding
+- Completely correct handling of HTTP protocol
+- Request/Responpse logging
