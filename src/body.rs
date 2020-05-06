@@ -68,6 +68,16 @@ impl From<String> for Body {
     }
 }
 
+impl<'a> From<&'a str> for Body {
+    fn from(s: &'a str) -> Self {
+        Self {
+            length: Some(s.len()),
+            reader: Box::new(Cursor::new(s.to_owned().into_bytes())),
+            mime: mime::TEXT_PLAIN,
+        }
+    }
+}
+
 impl AsyncRead for Body {
     fn poll_read(
         mut self: Pin<&mut Self>,
