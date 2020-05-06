@@ -1,4 +1,8 @@
 // TODO support more than fixed length body
+//
+// Note: I fixed the encoding ranges on the buffer, and used bytes_read correctly.
+// But the final buffer ended up the same? I guess that sending the wrong number of bytes read
+// must have mucked up what the stream was reading back out.
 
 use futures_io::AsyncRead;
 use std::pin::Pin;
@@ -11,12 +15,15 @@ pub(crate) struct Encoder {
     resp: InnerResponse,
     state: EncoderState,
 
+    // Tracks bytes read across one Encoder poll_read, which may span
+    // several calls of encoding methods
     bytes_read: usize,
 
     head_buf: Vec<u8>,
     head_bytes_read: usize,
 
     content_length: Option<usize>,
+    body_bytes_read: usize,
 }
 
 impl Encoder {
@@ -30,12 +37,12 @@ impl Encoder {
             head_buf: Vec::new(),
             head_bytes_read: 0,
             content_length,
+            body_bytes_read: 0,
         }
     }
 
     /// At start, prep headers for writing
     fn start(&mut self, cx: &mut Context<'_>, buf: &mut [u8]) -> Poll<std::io::Result<usize>> {
-        println!("hit start");
         let status = self.resp.head.status();
         // TODO deal with date later
         let date = fmt_http_date(std::time::SystemTime::now());
@@ -54,12 +61,10 @@ impl Encoder {
 
         // Now everything's prepped, on to sending the header
         self.state = EncoderState::Head;
-        dbg!(String::from_utf8(self.head_buf.clone()).unwrap());
         self.encode_head(cx, buf)
     }
 
     fn encode_head(&mut self, cx: &mut Context<'_>, buf: &mut [u8]) -> Poll<std::io::Result<usize>> {
-        println!("hit head");
         // Each read is not guaranteed to read the entire head_buf. So we keep track of our place
         // if the read is partial, so that it can be continued on the next poll.
 
@@ -87,12 +92,11 @@ impl Encoder {
                 }
             }
         } else {
-            return Poll::Ready(Ok(len));
+            return Poll::Ready(Ok(self.bytes_read));
         }
     }
 
     fn encode_fixed_body(&mut self, cx: &mut Context<'_>, buf: &mut [u8]) -> Poll<std::io::Result<usize>> {
-        println!("hit fixed");
         // Remember that from here, the buf has not been cleared yet, so consider the head as the
         // first part of the buf.
 
@@ -103,36 +107,33 @@ impl Encoder {
 
         let content_length = self.content_length.unwrap();
 
-        // Copy to to buf the shorter of (remaining body) or buf
+        // Copy to to buf the shorter of (remaining body + any previous reads) or buf
         let upper_limit = std::cmp::min(
-            content_length + self.head_buf.len(),
+            self.bytes_read + content_length - self.body_bytes_read,
             buf.len()
         );
         let range = self.bytes_read..upper_limit;
         let inner_read = Pin::new(&mut self.resp.body).poll_read(cx, &mut buf[range]);
-        let mut this_bytes_read = 0;
         match inner_read {
             Poll::Ready(Ok(n)) => {
                 self.bytes_read += n;
-                this_bytes_read += n;
+                self.body_bytes_read += n;
             },
             Poll::Ready(Err(err)) => {
                 return Poll::Ready(Err(err));
             },
             Poll::Pending => {
-                return Poll::Pending;
-                // TODO async-h1 has this, why?
-                // match self.bytes_read {
-                //      0 => return Poll::Pending,
-                //      n => return Poll::Ready(Ok(n))
-                // }
+                 match self.bytes_read {
+                      0 => return Poll::Pending,
+                      n => return Poll::Ready(Ok(n)),
+                 }
             },
         }
 
         // if entire resp is read, finish. Else return Poll::Ready for another iteration
-        if self.bytes_read == upper_limit {
+        if content_length == self.body_bytes_read {
             self.state = EncoderState::Done;
-            return Poll::Ready(Ok(this_bytes_read));
+            return Poll::Ready(Ok(self.bytes_read));
         } else {
             self.encode_fixed_body(cx, buf)
         }
@@ -145,16 +146,22 @@ impl AsyncRead for Encoder {
         cx: &mut Context<'_>,
         buf: &mut [u8],
     ) -> Poll<std::io::Result<usize>> {
+        // bytes_read is per call to poll_read for Encoder
+        self.bytes_read = 0;
+
         use EncoderState::*;
-        match self.state {
+        let res = match self.state {
             Start => self.start(cx, buf),
             Head => self.encode_head(cx, buf),
             FixedBody => self.encode_fixed_body(cx, buf),
             Done => Poll::Ready(Ok(0)),
-        }
+        };
+        //dbg!(String::from_utf8(buf[..100].to_vec().clone()).unwrap());
+        res
     }
 }
 
+#[derive(Debug)]
 enum EncoderState {
     Start,
     Head,
