@@ -43,18 +43,20 @@ impl Encoder {
 
     /// At start, prep headers for writing
     fn start(&mut self, cx: &mut Context<'_>, buf: &mut [u8]) -> Poll<std::io::Result<usize>> {
-        let status = self.resp.head.status();
+        let version = self.resp.version;
+        let status = self.resp.status;
         // TODO deal with date later
         let date = fmt_http_date(std::time::SystemTime::now());
 
-        std::io::Write::write_fmt(&mut self.head_buf, format_args!("HTTP/1.1 {}\r\n", status))?;
+        std::io::Write::write_fmt(&mut self.head_buf, format_args!("{:?} {}\r\n", version, status))?;
         if let Some(len) = self.content_length {
             std::io::Write::write_fmt(&mut self.head_buf, format_args!("content-length: {}\r\n", len))?;
         } else {
             std::io::Write::write_fmt(&mut self.head_buf, format_args!("transfer-encoding: chunked\r\n"))?;
         }
         std::io::Write::write_fmt(&mut self.head_buf, format_args!("date: {}\r\n", date)).unwrap();
-        for (header, value) in self.resp.head.headers() {
+        for (header, value) in &self.resp.headers {
+            // TODO check this: shouldn't head be &HeaderName, not Option<HeaderName>?
             std::io::Write::write_fmt(&mut self.head_buf, format_args!("{}: {}\r\n", header, value.to_str().unwrap()))?;
         }
         std::io::Write::write_fmt(&mut self.head_buf, format_args!("\r\n"))?;
