@@ -26,7 +26,7 @@ where
 
     // Keep reading bytes from the stream until we hit the end of the stream.
     loop {
-        let bytes_read = reader.read_until(LF, &mut buf).await.unwrap();
+        let bytes_read = reader.read_until(LF, &mut buf).await.expect("Error reading");
 
         // No more bytes are yielded from the stream.
         if bytes_read == 0 {
@@ -41,18 +41,18 @@ where
     }
 
     // Convert our header buf into an httparse instance, and validate.
-    let status = httparse_req.parse(&buf).unwrap();
+    let status = httparse_req.parse(&buf).expect("Error parsing http header");
 
     // TODO error type
     if status.is_partial() { panic!("Malformed Header") }
 
 
     // TODO remove allocation
-    let path = httparse_req.path.unwrap();
-    let uri: Uri = format!("{}{}", addr, path).parse().unwrap();
+    let path = httparse_req.path.expect("no path");
+    let uri: Uri = format!("{}{}", addr, path).parse().expect("error parsing uri");
 
-    let method = http::Method::from_bytes(httparse_req.method.unwrap().as_bytes()).unwrap();
-    let version = if httparse_req.version.unwrap() == 1 {
+    let method = http::Method::from_bytes(httparse_req.method.expect("no method").as_bytes()).expect("error parsing method from bytes");
+    let version = if httparse_req.version.expect("no version") == 1 {
         //TODO keep_alive = true, is_http_11 = true
         http::Version::HTTP_11
     } else {
@@ -72,23 +72,26 @@ where
     let mut content_length = None;
     for header in httparse_req.headers.iter() {
         if header.name == CONTENT_LENGTH {
-            content_length = Some(std::str::from_utf8(header.value).unwrap().parse::<usize>().unwrap());
+            content_length = Some(std::str::from_utf8(header.value).expect("not utf8").parse::<usize>().expect("parse error"));
         }
 
         req.headers_mut()
-            .unwrap()
-            .append(HeaderName::from_bytes(header.name.as_bytes()).unwrap(), HeaderValue::from_bytes(header.value) .unwrap());
+            .expect("error getting headers_mut")
+            .append(
+                HeaderName::from_bytes(header.name.as_bytes()).expect("HeaderName parse error"),
+                HeaderValue::from_bytes(header.value).expect("headervalue parse error")
+            );
     }
 
 
     // TODO fix this when transfer encoding is allowed
     let content_length = content_length.unwrap_or(0);
-    dbg!(content_length);
+    //dbg!(content_length);
 
     let body = reader.take(content_length as u64);
     let req = req
         .body(Body::from_reader(body, Some(content_length)))
-        .unwrap();
+        .expect("Error making body");
 
     Ok(Some(req))
 }
