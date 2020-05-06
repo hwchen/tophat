@@ -26,4 +26,4 @@ async fn handler(req:Request) -> Result<Response, Error> {
 # Upcoming
 - Transfer-encoding
 - Completely correct handling of HTTP protocol
-- Request/Responpse logging
+- Request/Response logging
