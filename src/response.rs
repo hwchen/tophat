@@ -17,16 +17,16 @@ pin_project_lite::pin_project! {
     }
 }
 
-pub struct ResponseWriter<RW>
+pub struct ResponseWriter<W>
 where
-    RW: AsyncWrite + Clone + Send + Sync + Unpin + 'static,
+    W: AsyncWrite + Clone + Send + Sync + Unpin + 'static,
 {
-    pub writer: RW,
+    pub writer: W,
 }
 
-impl<RW> ResponseWriter<RW>
+impl<W> ResponseWriter<W>
 where
-    RW: AsyncWrite + Clone + Send + Sync + Unpin + 'static,
+    W: AsyncWrite + Clone + Send + Sync + Unpin + 'static,
 {
     /// send response, and TODO return number of bytes written (I guess this would be a struct for more
     /// complicated sends, like with compression)
@@ -43,11 +43,6 @@ where
     }
 }
 
-// is there a way to do a compile-time check here for whether resp_wtr.send() was called? Maybe
-// by creating a new type from it.
-// I guess the easy way is by a marker like ResponseWritten, which must be passed to the end of
-// the handler. But is this too unwieldy? Shouldn't be too bad.
-//
 // TODO have a ReponseResult, which may contain bytes read etc. And then have it transform into
 // ResponseWritten, to minimize boilerplate
 pub struct ResponseWritten;
