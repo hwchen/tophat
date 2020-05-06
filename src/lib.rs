@@ -23,11 +23,20 @@ where
     F: Fn(Request, ResponseWriter<RW>) -> Fut,
     Fut: Future<Output = http::Result<ResponseWritten>>,
 {
-    // decode to Request
-    let req = decode(addr, io.clone()).await?.unwrap();
-    // encode from Response happens when `ResponseWriter::send()` is called inside endpoint
-    let resp_wtr = ResponseWriter { writer: io };
-    endpoint(req, resp_wtr).await?;
+    loop {
+        // decode to Request
+        let req_fut = decode(addr, io.clone());
+
+        // Handle eof
+        let req = match req_fut.await? {
+            Some(r) => r,
+            None => break, /* EOF */
+        };
+
+        // encode from Response happens when `ResponseWriter::send()` is called inside endpoint
+        let resp_wtr = ResponseWriter { writer: io.clone() };
+        endpoint(req, resp_wtr).await?;
+    }
 
     Ok(())
 }
