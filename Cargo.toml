@@ -17,3 +17,4 @@ mime = "0.3.16"
 
 [dev-dependencies]
 smol = "0.1.4"
+piper = "0.1.1"
