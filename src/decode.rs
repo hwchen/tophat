@@ -26,7 +26,7 @@ where
 
     // Keep reading bytes from the stream until we hit the end of the stream.
     loop {
-        let bytes_read = reader.read_until(LF, &mut buf).await?;
+        let bytes_read = reader.read_until(LF, &mut buf).await.map_err(|err| Error::Connection(err))?;
 
         // No more bytes are yielded from the stream.
         if bytes_read == 0 {

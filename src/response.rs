@@ -3,7 +3,7 @@ use http::Response as HttpResponse;
 
 use crate::body::Body;
 use crate::encode::Encoder;
-use crate::error::Result;
+use crate::error::{Error, Result};
 
 /// Currently, Response is not generic over Body type
 pub type Response = HttpResponse<Body>;
@@ -38,7 +38,7 @@ where
             body: resp.into_body(),
         };
         let mut encoder = Encoder::encode(inner_resp);
-        futures_util::io::copy(&mut encoder, &mut writer).await?;
+        futures_util::io::copy(&mut encoder, &mut writer).await.map_err(|err| Error::Connection(err))?;
         Ok(ResponseWritten)
     }
 }
