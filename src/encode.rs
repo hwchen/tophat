@@ -5,6 +5,7 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 
 use crate::response::InnerResponse;
+use crate::date::fmt_http_date;
 
 pub(crate) struct Encoder {
     resp: InnerResponse,
@@ -34,17 +35,18 @@ impl Encoder {
 
     /// At start, prep headers for writing
     fn start(&mut self, cx: &mut Context<'_>, buf: &mut [u8]) -> Poll<std::io::Result<usize>> {
-        let reason = self.resp.head.status().canonical_reason().unwrap();
+        println!("hit start");
         let status = self.resp.head.status();
         // TODO deal with date later
-        //let date = std::time::SystemTime::now();
+        let date = fmt_http_date(std::time::SystemTime::now());
 
-        std::io::Write::write_fmt(&mut self.head_buf, format_args!("HTTP/1.1 {} {}\r\n", status, reason))?;
+        std::io::Write::write_fmt(&mut self.head_buf, format_args!("HTTP/1.1 {}\r\n", status))?;
         if let Some(len) = self.content_length {
             std::io::Write::write_fmt(&mut self.head_buf, format_args!("content-length: {}\r\n", len))?;
         } else {
             std::io::Write::write_fmt(&mut self.head_buf, format_args!("transfer-encoding: chunked\r\n"))?;
         }
+        std::io::Write::write_fmt(&mut self.head_buf, format_args!("date: {}\r\n", date)).unwrap();
         for (header, value) in self.resp.head.headers() {
             std::io::Write::write_fmt(&mut self.head_buf, format_args!("{}: {}\r\n", header, value.to_str().unwrap()))?;
         }
@@ -52,10 +54,12 @@ impl Encoder {
 
         // Now everything's prepped, on to sending the header
         self.state = EncoderState::Head;
+        dbg!(String::from_utf8(self.head_buf.clone()).unwrap());
         self.encode_head(cx, buf)
     }
 
     fn encode_head(&mut self, cx: &mut Context<'_>, buf: &mut [u8]) -> Poll<std::io::Result<usize>> {
+        println!("hit head");
         // Each read is not guaranteed to read the entire head_buf. So we keep track of our place
         // if the read is partial, so that it can be continued on the next poll.
 
@@ -88,6 +92,7 @@ impl Encoder {
     }
 
     fn encode_fixed_body(&mut self, cx: &mut Context<'_>, buf: &mut [u8]) -> Poll<std::io::Result<usize>> {
+        println!("hit fixed");
         // Remember that from here, the buf has not been cleared yet, so consider the head as the
         // first part of the buf.
 

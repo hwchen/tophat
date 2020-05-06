@@ -81,7 +81,8 @@ where
     }
 
 
-    let content_length = content_length.unwrap();
+    // TODO fix this when transfer encoding is allowed
+    let content_length = content_length.unwrap_or(0);
     dbg!(content_length);
 
     let body = reader.take(content_length as u64);
