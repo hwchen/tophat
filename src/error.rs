@@ -8,8 +8,8 @@ pub enum Error {
     #[error("Error sending response: {0}")]
     ResponseSend(std::io::Error),
     // this is error on body
-    #[error("Io: {0}")]
-    Io(std::io::Error),
+    #[error("Error converting body: {0}")]
+    BodyConversion(std::io::Error),
 
     #[error("Http transfer encoding not supported")]
     HttpTransferEncodingNotSupported,
