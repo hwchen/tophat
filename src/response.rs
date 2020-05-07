@@ -52,7 +52,7 @@ impl InnerResponse {
     {
         let mut encoder = Encoder::encode(self);
         let mut writer = writer;
-        futures_util::io::copy(&mut encoder, &mut writer).await.map_err(|err| ResponseFail::Connection(err))?;
+        futures_util::io::copy(&mut encoder, &mut writer).await.map_err(ResponseFail::Connection)?;
         Ok(ResponseWritten)
     }
 }

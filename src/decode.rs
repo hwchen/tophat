@@ -36,7 +36,7 @@ where
 
     // Keep reading bytes from the stream until we hit the end of the head.
     loop {
-        let bytes_read = reader.read_until(LF, &mut buf).await.map_err(|err| ConnectionLost(err))?;
+        let bytes_read = reader.read_until(LF, &mut buf).await.map_err(ConnectionLost)?;
 
         // No bytes read, no request.
         if bytes_read == 0 {
@@ -81,6 +81,7 @@ where
     // just check for content length for now
     // TODO check hyper for all the subtleties
     let mut content_length = None;
+    #[allow(clippy::borrow_interior_mutable_const)] // TODO see if I can remove this later
     for header in httparse_req.headers.iter() {
         if header.name == header::CONTENT_LENGTH {
             content_length = Some(

@@ -48,13 +48,13 @@ impl Body {
     // TODO make errors
     pub async fn into_bytes(mut self) -> Result<Vec<u8>> {
         let mut buf = Vec::with_capacity(1024);
-        self.read_to_end(&mut buf).await.map_err(|err| Error::BodyConversion(err))?;
+        self.read_to_end(&mut buf).await.map_err(Error::BodyConversion)?;
         Ok(buf)
     }
 
     pub async fn into_string(mut self) -> Result<String> {
         let mut buf = String::with_capacity(self.length.unwrap_or(0));
-        self.read_to_string(&mut buf).await.map_err(|err| Error::BodyConversion(err))?;
+        self.read_to_string(&mut buf).await.map_err(Error::BodyConversion)?;
         Ok(buf)
     }
 }

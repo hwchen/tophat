@@ -86,15 +86,15 @@ impl Encoder {
             match self.content_length {
                 Some(_) => {
                     self.state = EncoderState::FixedBody;
-                    return self.encode_fixed_body(cx, buf);
+                    self.encode_fixed_body(cx, buf)
                 }
                 None => {
                     // TODO for now just end
-                    return Poll::Ready(Ok(self.bytes_read));
+                    Poll::Ready(Ok(self.bytes_read))
                 }
             }
         } else {
-            return Poll::Ready(Ok(self.bytes_read));
+            Poll::Ready(Ok(self.bytes_read))
         }
     }
 
@@ -135,7 +135,7 @@ impl Encoder {
         // if entire resp is read, finish. Else return Poll::Ready for another iteration
         if content_length == self.body_bytes_read {
             self.state = EncoderState::Done;
-            return Poll::Ready(Ok(self.bytes_read));
+            Poll::Ready(Ok(self.bytes_read))
         } else {
             self.encode_fixed_body(cx, buf)
         }
@@ -152,14 +152,12 @@ impl AsyncRead for Encoder {
         self.bytes_read = 0;
 
         use EncoderState::*;
-        let res = match self.state {
+        match self.state {
             Start => self.start(cx, buf),
             Head => self.encode_head(cx, buf),
             FixedBody => self.encode_fixed_body(cx, buf),
             Done => Poll::Ready(Ok(0)),
-        };
-        //dbg!(String::from_utf8(buf[..100].to_vec().clone()).unwrap());
-        res
+        }
     }
 }
 
