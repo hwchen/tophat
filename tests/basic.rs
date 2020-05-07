@@ -70,12 +70,10 @@ fn test_basic_request() {
     });
 }
 #[test]
-// TODO handle malformed method
-#[ignore] // temporary
-fn test_malformed_request_method() {
+fn test_missing_request_method() {
     smol::block_on(async {
         let testclient = TestClient::new(
-            "GT /foo/bar HTTP/1.1\r\nHost: example.org\r\nContent-Length: 0\r\n\r\n",
+            "/foo/bar HTTP/1.1\r\nHost: example.org\r\nContent-Length: 0\r\n\r\n",
             "HTTP/1.1 400 Bad Request\r\ncontent-length: 0\r\n\r\n",
         );
 
