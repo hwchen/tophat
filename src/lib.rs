@@ -28,10 +28,22 @@ where
         // decode to Request
         let req_fut = decode(addr, io.clone());
 
-        // Handle eof
-        let req = match req_fut.await? {
-            Some(r) => r,
-            None => break, /* EOF */
+        // Handle req failure modes, timeout, eof
+        let req = req_fut.await;
+        let req= match req {
+            Ok(r) => {
+                match r {
+                    Some(r) => r,
+                    None => break, /* EOF */
+                }
+            },
+            Err(err) => {
+                // send a resp for errors from decoding, and continue on to next request
+                if let Some(err_resp) = decode::fail_to_response_and_log(err) {
+                    let _ = err_resp.send(io.clone()).await;
+                }
+                continue;
+            },
         };
 
         // encode from Response happens when `ResponseWriter::send()` is called inside endpoint

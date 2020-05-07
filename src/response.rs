@@ -25,6 +25,27 @@ pin_project_lite::pin_project! {
     }
 }
 
+impl InnerResponse {
+    /// used for bad request in decoding.
+    pub(crate) fn bad_request() -> Self {
+        Self {
+            status: StatusCode::BAD_REQUEST,
+            headers: HeaderMap::new(),
+            version: Version::default(),
+            body: Body::empty(),
+        }
+    }
+
+    pub(crate) async fn send<W>(self, writer: W) -> Result<ResponseWritten>
+        where W: AsyncWrite + Clone + Send + Sync + Unpin + 'static,
+    {
+        let mut encoder = Encoder::encode(self);
+        let mut writer = writer;
+        futures_util::io::copy(&mut encoder, &mut writer).await.map_err(|err| Error::Connection(err))?;
+        Ok(ResponseWritten)
+    }
+}
+
 pub struct ResponseWriter<W>
 where
     W: AsyncWrite + Clone + Send + Sync + Unpin + 'static,
@@ -48,13 +69,11 @@ where
             body,
         };
 
-        let mut encoder = Encoder::encode(inner_resp);
-        let mut writer = self.writer;
-        futures_util::io::copy(&mut encoder, &mut writer).await.map_err(|err| Error::Connection(err))?;
-        Ok(ResponseWritten)
+        inner_resp.send(self.writer).await
     }
 }
 
 // TODO have a ReponseResult, which may contain bytes read etc. And then have it transform into
 // ResponseWritten, to minimize boilerplate
 pub struct ResponseWritten;
+

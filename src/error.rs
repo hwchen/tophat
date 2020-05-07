@@ -4,20 +4,12 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(ThisError, Debug)]
 pub enum Error {
-    #[error("Connection error: {0}")]
+    #[error("Connection Lost: {0}")]
     Connection(std::io::Error),
-
-    // This needs to get manually mapped, since the automatic From is for tcp connection errors, of
-    // which there are many more.
-    #[error("Io error: {0}")]
+    #[error("Io: {0}")]
     Io(std::io::Error),
-
-    #[error("Http header parsing error: {0}")]
-    HeaderParse(#[from] httparse::Error),
-
     #[error("Http error: {0}")]
     Http(#[from] http::Error),
-
     #[error("Http Uri error: {0}")]
     HttpUri(#[from] http::uri::InvalidUri),
     #[error("Http Method error: {0}")]
@@ -27,13 +19,6 @@ pub enum Error {
     #[error("Http Header value error: {0}")]
     HttpHeaderValue(#[from] http::header::InvalidHeaderValue),
 
-    // TODO check that these are actually errors, and not just something to handle
-    #[error("Http: no version found")]
-    HttpNoVersion,
-    #[error("Http no path found")]
-    HttpNoPath,
-    #[error("Http no method found")]
-    HttpNoMethod,
-    #[error("Http invalid content length")]
-    HttpInvalidContentLength,
+    #[error("Http transfer encoding not supported")]
+    HttpTransferEncodingNotSupported,
 }

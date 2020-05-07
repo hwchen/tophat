@@ -9,31 +9,41 @@ use futures_io::AsyncRead;
 use futures_util::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
 use http::header::{HeaderName, HeaderValue, CONTENT_LENGTH};
 use http::uri::Uri;
+use thiserror::Error as ThisError;
 
+use crate::Request;
 use crate::body::Body;
-use crate::{Error, Result, Request};
+use crate::response::InnerResponse;
 
 const LF: u8 = b'\n';
 
-pub(crate) async fn decode<R>(addr: &str, reader: R) -> Result<Option<Request>>
+/// Decode and http request
+///
+/// Errors are bubbled up and handled in `accept`, the possible decode errors and the error handler
+/// are defined in this module.
+///
+/// `None` means that no request was read.
+pub(crate) async fn decode<R>(addr: &str, reader: R) -> Result<Option<Request>, DecodeFail>
 where
     R: AsyncRead + Unpin + Send + Sync + 'static
 {
+    use DecodeFail::*;
+
     let mut reader = BufReader::new(reader);
     let mut buf = Vec::new();
     let mut headers = [httparse::EMPTY_HEADER; 16];
     let mut httparse_req = httparse::Request::new(&mut headers);
 
-    // Keep reading bytes from the stream until we hit the end of the stream.
+    // Keep reading bytes from the stream until we hit the end of the head.
     loop {
-        let bytes_read = reader.read_until(LF, &mut buf).await.map_err(|err| Error::Connection(err))?;
+        let bytes_read = reader.read_until(LF, &mut buf).await.map_err(|err| ConnectionLost(err))?;
 
-        // No more bytes are yielded from the stream.
+        // No bytes read, no request.
         if bytes_read == 0 {
             return Ok(None);
         }
 
-        // We've hit the end delimiter of the stream.
+        // We've hit the end delimiter of the head.
         let idx = buf.len() - 1;
         if idx >= 3 && &buf[idx - 3..=idx] == b"\r\n\r\n" {
             break;
@@ -44,15 +54,16 @@ where
     let status = httparse_req.parse(&buf)?;
 
     // TODO error type
-    if status.is_partial() { panic!("Malformed Header") }
+    if status.is_partial() { return Err(HttpMalformedHead) };
 
 
     // TODO remove allocation
-    let path = httparse_req.path.ok_or(Error::HttpNoPath)?;
+    // TODO use host header?
+    let path = httparse_req.path.ok_or(HttpNoPath)?;
     let uri: Uri = format!("{}{}", addr, path).parse()?;
 
-    let method = http::Method::from_bytes(httparse_req.method.ok_or(Error::HttpNoMethod)?.as_bytes())?;
-    let version = if httparse_req.version.ok_or(Error::HttpNoVersion)? == 1 {
+    let method = http::Method::from_bytes(httparse_req.method.ok_or(HttpNoMethod)?.as_bytes())?;
+    let version = if httparse_req.version.ok_or(HttpNoVersion)? == 1 {
         //TODO keep_alive = true, is_http_11 = true
         http::Version::HTTP_11
     } else {
@@ -74,9 +85,9 @@ where
         if header.name == CONTENT_LENGTH {
             content_length = Some(
                 std::str::from_utf8(header.value)
-                .map_err(|_| Error::HttpInvalidContentLength)?
+                .map_err(|_| HttpInvalidContentLength)?
                 .parse::<usize>()
-                .map_err(|_| Error::HttpInvalidContentLength)?
+                .map_err(|_| HttpInvalidContentLength)?
             );
         }
 
@@ -88,13 +99,55 @@ where
     }
 
 
-    // TODO fix this when transfer encoding is allowed
+    // Handling content-length v. transfer-encoding:
+    // https://tools.ietf.org/html/rfc7230#section-3.3.3
     let content_length = content_length.unwrap_or(0);
-    //dbg!(content_length);
 
     let body = reader.take(content_length as u64);
     let req = req
-        .body(Body::from_reader(body, Some(content_length)))?;
+        .body(Body::from_reader(body, Some(content_length)))
+        .map_err(|_| HttpRequestBuild)?;
 
     Ok(Some(req))
+}
+
+#[derive(ThisError, Debug)]
+pub(crate) enum DecodeFail {
+    #[error("Connection Lost: {0}")]
+    ConnectionLost(std::io::Error),
+    #[error("Http parse malformed head")]
+    HttpMalformedHead,
+
+    // TODO check that these are actually errors, and not just something to handle
+    #[error("Http no path found")]
+    HttpNoPath,
+    #[error("Http no method found")]
+    HttpNoMethod,
+    #[error("Http: no version found")]
+    HttpNoVersion,
+    #[error("Http invalid content length")]
+    HttpInvalidContentLength,
+    #[error("Http request could not be built")]
+    HttpRequestBuild,
+
+    // conversions related to http and httparse lib
+    #[error("Http header parsing error: {0}")]
+    HeaderParse(#[from] httparse::Error),
+    #[error("Http Uri error: {0}")]
+    HttpUri(#[from] http::uri::InvalidUri),
+    #[error("Http Method error: {0}")]
+    HttpMethod(#[from] http::method::InvalidMethod),
+    #[error("Http Header name error: {0}")]
+    HttpHeaderName(#[from] http::header::InvalidHeaderName),
+    #[error("Http Header value error: {0}")]
+    HttpHeaderValue(#[from] http::header::InvalidHeaderValue),
+}
+
+pub(crate) fn fail_to_response_and_log(fail: DecodeFail) -> Option<InnerResponse> {
+        use DecodeFail::*;
+
+    match fail {
+        ConnectionLost(_) => None,
+        _ => InnerResponse::bad_request(),
+    }
 }
