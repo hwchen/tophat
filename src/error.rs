@@ -10,7 +10,4 @@ pub enum Error {
     // this is error on body
     #[error("Error converting body: {0}")]
     BodyConversion(std::io::Error),
-
-    #[error("Http transfer encoding not supported")]
-    HttpTransferEncodingNotSupported,
 }
