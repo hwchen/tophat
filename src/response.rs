@@ -36,6 +36,16 @@ impl InnerResponse {
         }
     }
 
+    /// used for bad request in decoding.
+    pub(crate) fn internal_server_error() -> Self {
+        Self {
+            status: StatusCode::INTERNAL_SERVER_ERROR,
+            headers: HeaderMap::new(),
+            version: Version::default(),
+            body: Body::empty(),
+        }
+    }
+
     pub(crate) async fn send<W>(self, writer: W) -> Result<ResponseWritten>
         where W: AsyncWrite + Clone + Send + Sync + Unpin + 'static,
     {

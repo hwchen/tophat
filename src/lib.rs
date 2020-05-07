@@ -15,9 +15,11 @@ pub use crate::body::Body;
 use crate::decode::decode;
 pub use crate::error::{Error, Result};
 pub use crate::request::Request;
+use crate::response::InnerResponse;
 pub use crate::response::{ResponseWriter, ResponseWritten};
 
 /// Accept a new incoming Http/1.1 connection
+// All errors should be bubbled up to this fn to handle, either in logs or in responses.
 pub async fn accept<RW, F, Fut>(addr: &str, io: RW, endpoint: F) -> Result<()>
 where
     RW: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
@@ -46,9 +48,19 @@ where
             },
         };
 
-        // encode from Response happens when `ResponseWriter::send()` is called inside endpoint
+        // Encode from Response happens when `ResponseWriter::send()` is called inside endpoint.
+        // Handle errors from:
+        // - encoding (std::io::Error): try to send 500
+        // - errors from endpoint: send 500
+        //
+        // Users of tophat should build their own error responses.
+        // Perhaps later I can build in a hook for custom error handling, but I should wait for use
+        // cases.
         let resp_wtr = ResponseWriter { writer: io.clone() };
-        endpoint(req, resp_wtr).await?;
+        if let Err(_) =  endpoint(req, resp_wtr).await {
+            let _ = InnerResponse::internal_server_error()
+                .send(io.clone()).await;
+        }
     }
 
     Ok(())
