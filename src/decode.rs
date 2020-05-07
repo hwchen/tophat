@@ -7,7 +7,7 @@
 
 use futures_io::AsyncRead;
 use futures_util::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
-use http::header::{HeaderName, HeaderValue, CONTENT_LENGTH};
+use http::header::{self, HeaderName, HeaderValue};
 use http::uri::Uri;
 use thiserror::Error as ThisError;
 
@@ -82,13 +82,15 @@ where
     // TODO check hyper for all the subtleties
     let mut content_length = None;
     for header in httparse_req.headers.iter() {
-        if header.name == CONTENT_LENGTH {
+        if header.name == header::CONTENT_LENGTH {
             content_length = Some(
                 std::str::from_utf8(header.value)
                 .map_err(|_| HttpInvalidContentLength)?
                 .parse::<usize>()
                 .map_err(|_| HttpInvalidContentLength)?
             );
+        } else if header.name == header::TRANSFER_ENCODING {
+            return Err(HttpTransferEncodingNotSupported);
         }
 
         req.headers_mut().expect("Request builder error")
@@ -141,6 +143,10 @@ pub(crate) enum DecodeFail {
     HttpHeaderName(#[from] http::header::InvalidHeaderName),
     #[error("Http Header value error: {0}")]
     HttpHeaderValue(#[from] http::header::InvalidHeaderValue),
+
+    // Temporary error until transfer coding supported
+    #[error("Http transfer encoding not supported")]
+    HttpTransferEncodingNotSupported,
 }
 
 pub(crate) fn fail_to_response_and_log(fail: DecodeFail) -> Option<InnerResponse> {
