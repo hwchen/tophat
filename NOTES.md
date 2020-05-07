@@ -14,3 +14,5 @@ https://github.com/http-rs/http-types/blob/master/src/body.rs
 Other implementation notes from hyper: `body.rs`
 https://docs.rs/hyper/0.13.5/src/hyper/body/body.rs.html#84-87
 
+# Error handling
+Try to handle local fails in each module, bubbling up those failures so they can be handled in the root module. Try to keep the handlers for those failures in each modules also, and output a response, because internal failures should generally be handled by issuing a bad request or internal server error. Catastrophic system failure is a bug. Basically, `accept` should never fail.
