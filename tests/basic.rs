@@ -22,8 +22,7 @@ fn test_empty_body() {
             "HTTP/1.1 200 OK\r\ncontent-length: 0\r\n\r\n"
         );
 
-        let addr = "http://example.org";
-        accept(addr, testclient.clone(), |_req, resp_wtr| async move {
+        accept(testclient.clone(), |_req, resp_wtr| async move {
             let resp = HttpResponse::new(Body::empty());
             // Won't compile if done is not returned in Ok!
             let done = resp_wtr.send(resp).await.unwrap();
@@ -45,10 +44,8 @@ fn test_basic_request() {
             "HTTP/1.1 200 OK\r\ncontent-length: 12\r\n\r\nHello tophat",
         );
 
-        let addr = "http://example.org";
-        accept(addr, testclient.clone(), |req, resp_wtr| async move {
+        accept(testclient.clone(), |req, resp_wtr| async move {
             // some basic parsing tests
-            assert_eq!(*req.uri(), Uri::from_static("http://example.org/foo/bar"));
             assert_eq!(req.version(), Version::HTTP_11);
             assert_eq!(req.method(), Method::GET);
             assert_eq!(req.headers().get(header::CONTENT_LENGTH), Some(&HeaderValue::from_bytes(b"6").unwrap()));
@@ -77,8 +74,7 @@ fn test_missing_request_method() {
             "HTTP/1.1 400 Bad Request\r\ncontent-length: 0\r\n\r\n",
         );
 
-        let addr = "http://example.org";
-        accept(addr, testclient.clone(), |_req, resp_wtr| async move {
+        accept(testclient.clone(), |_req, resp_wtr| async move {
             let resp = HttpResponse::new(Body::empty());
             resp_wtr.send(resp).await
         })
@@ -90,17 +86,69 @@ fn test_missing_request_method() {
 }
 
 #[test]
-// TODO handle malformed path/host
-#[ignore] // temporary
-fn test_malformed_request_path() {
+fn test_missing_host() {
     smol::block_on(async {
         let testclient = TestClient::new(
-            "GET /foo/bar HTTP/1.1\r\nHost: example.org\r\nContent-Length: 0\r\n\r\n",
+            "GET /foo/bar HTTP/1.1\r\nContent-Length: 0\r\n\r\n",
             "HTTP/1.1 400 Bad Request\r\ncontent-length: 0\r\n\r\n",
         );
 
-        let addr = "http://example.org";
-        accept(addr, testclient.clone(), |_req, resp_wtr| async move {
+        accept(testclient.clone(), |_req, resp_wtr| async move {
+            let resp = HttpResponse::new(Body::empty());
+            resp_wtr.send(resp).await
+        })
+        .await
+        .unwrap();
+
+        testclient.assert();
+    });
+}
+
+#[test]
+// ignore host, should return abs_path or AbsoluteURI from uri
+fn test_request_path() {
+    smol::block_on(async {
+        // good uri path
+        let testclient = TestClient::new(
+            "GET /foo/bar HTTP/1.1\r\nHost: example.org\r\nContent-Length: 0\r\n\r\n",
+            "HTTP/1.1 200 OK\r\ncontent-length: 0\r\n\r\n",
+        );
+
+        accept(testclient.clone(), |req, resp_wtr| async move {
+            assert_eq!(*req.uri(), Uri::from_static("/foo/bar"));
+            assert_eq!(*req.uri().path(), Uri::from_static("/foo/bar"));
+            let resp = HttpResponse::new(Body::empty());
+            resp_wtr.send(resp).await
+        })
+        .await
+        .unwrap();
+
+        testclient.assert();
+
+        // good absolute uri, ignores host
+        let testclient = TestClient::new(
+            "GET https://wunder.org/foo/bar HTTP/1.1\r\nHost: example.org\r\nContent-Length: 0\r\n\r\n",
+            "HTTP/1.1 200 OK\r\ncontent-length: 0\r\n\r\n",
+        );
+
+        accept(testclient.clone(), |req, resp_wtr| async move {
+            assert_eq!(*req.uri(), Uri::from_static("https://wunder.org/foo/bar"));
+            assert_eq!(*req.uri().path(), Uri::from_static("/foo/bar"));
+            let resp = HttpResponse::new(Body::empty());
+            resp_wtr.send(resp).await
+        })
+        .await
+        .unwrap();
+
+        testclient.assert();
+
+        // bad uri path
+        let testclient = TestClient::new(
+            "GET foo/bar HTTP/1.1\r\nHost: example.org\r\nContent-Length: 0\r\n\r\n",
+            "HTTP/1.1 400 Bad Request\r\ncontent-length: 0\r\n\r\n",
+        );
+
+        accept(testclient.clone(), |_req, resp_wtr| async move {
             let resp = HttpResponse::new(Body::empty());
             resp_wtr.send(resp).await
         })
@@ -119,8 +167,7 @@ fn test_malformed_request_version() {
             "HTTP/1.1 400 Bad Request\r\ncontent-length: 0\r\n\r\n",
         );
 
-        let addr = "http://example.org";
-        accept(addr, testclient.clone(), |_req, resp_wtr| async move {
+        accept(testclient.clone(), |_req, resp_wtr| async move {
             let resp = HttpResponse::new(Body::empty());
             resp_wtr.send(resp).await
         })
@@ -141,8 +188,7 @@ fn test_transfer_encoding_content_length() {
             "HTTP/1.1 400 Bad Request\r\ncontent-length: 0\r\n\r\n",
         );
 
-        let addr = "http://example.org";
-        accept(addr, testclient.clone(), |_req, resp_wtr| async move {
+        accept(testclient.clone(), |_req, resp_wtr| async move {
             let resp = HttpResponse::new(Body::empty());
             resp_wtr.send(resp).await
         })

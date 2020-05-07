@@ -20,7 +20,7 @@ pub use crate::response::{ResponseWriter, ResponseWritten};
 
 /// Accept a new incoming Http/1.1 connection
 // All errors should be bubbled up to this fn to handle, either in logs or in responses.
-pub async fn accept<RW, F, Fut>(addr: &str, io: RW, endpoint: F) -> Result<()>
+pub async fn accept<RW, F, Fut>(io: RW, endpoint: F) -> Result<()>
 where
     RW: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
     F: Fn(Request, ResponseWriter<RW>) -> Fut,
@@ -28,7 +28,7 @@ where
 {
     loop {
         // decode to Request
-        let req_fut = decode(addr, io.clone());
+        let req_fut = decode(io.clone());
 
         // Handle req failure modes, timeout, eof
         let req = req_fut.await;

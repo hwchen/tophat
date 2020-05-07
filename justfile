@@ -1,3 +1,6 @@
+watch:
+    cargo watch -x 'check --examples --tests'
+
 test:
     cargo watch -x 'test -- --nocapture'
 

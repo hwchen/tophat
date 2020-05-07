@@ -6,16 +6,14 @@ use tophat::accept;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let listener = Async::<TcpListener>::bind("127.0.0.1:9999")?;
-    let addr = format!("http://{}", listener.get_ref().local_addr()?);
 
     smol::run(async {
         loop {
-            let addr = addr.clone();
             let (stream, _) = listener.accept().await?;
             let stream = Arc::new(stream);
 
             let task = Task::spawn(async move {
-                let serve = accept(&addr, stream, |req, resp_wtr| async {
+                let serve = accept(stream, |req, resp_wtr| async {
                     println!("{:?}", *req.uri());
                     println!("{:?}", req.version());
                     println!("{:?}", req.method());

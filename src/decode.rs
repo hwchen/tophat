@@ -8,7 +8,6 @@
 use futures_io::AsyncRead;
 use futures_util::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
 use http::header::{self, HeaderName, HeaderValue};
-use http::uri::Uri;
 use thiserror::Error as ThisError;
 
 use crate::Request;
@@ -23,7 +22,7 @@ const LF: u8 = b'\n';
 /// are defined in this module.
 ///
 /// `None` means that no request was read.
-pub(crate) async fn decode<R>(addr: &str, reader: R) -> Result<Option<Request>, DecodeFail>
+pub(crate) async fn decode<R>(reader: R) -> Result<Option<Request>, DecodeFail>
 where
     R: AsyncRead + Unpin + Send + Sync + 'static
 {
@@ -50,18 +49,11 @@ where
         }
     }
 
-    // Convert our header buf into an httparse instance, and validate.
+    // Convert head buf into an httparse instance, and validate.
     let status = httparse_req.parse(&buf)?;
-
-    // TODO error type
     if status.is_partial() { return Err(HttpMalformedHead) };
 
-
-    // TODO remove allocation
-    // TODO use host header?
-    let path = httparse_req.path.ok_or(HttpNoPath)?;
-    let uri: Uri = format!("{}{}", addr, path).parse()?;
-
+    // Check that req basics are here
     let method = http::Method::from_bytes(httparse_req.method.ok_or(HttpNoMethod)?.as_bytes())?;
     let version = if httparse_req.version.ok_or(HttpNoVersion)? == 1 {
         //TODO keep_alive = true, is_http_11 = true
@@ -71,16 +63,13 @@ where
         http::Version::HTTP_10
     };
 
-    let mut req = http::request::Builder::new()
-        .method(method)
-        .uri(uri)
-        .version(version);
+    // Start with the basic request build, so we can add headers directly.
+    let mut req = http::request::Builder::new();
 
-
-    // append headers
-    // just check for content length for now
+    // Now check headers for special cases (e.g. content-length, host), and append all headers
     // TODO check hyper for all the subtleties
     let mut content_length = None;
+    let mut has_host = false;
     #[allow(clippy::borrow_interior_mutable_const)] // TODO see if I can remove this later
     for header in httparse_req.headers.iter() {
         if header.name == header::CONTENT_LENGTH {
@@ -92,6 +81,8 @@ where
             );
         } else if header.name == header::TRANSFER_ENCODING {
             return Err(HttpTransferEncodingNotSupported);
+        } else if header.name == header::HOST {
+            has_host = true;
         }
 
         req.headers_mut().expect("Request builder error")
@@ -101,13 +92,26 @@ where
             );
     }
 
+    // Now handle more complex parts of HTTP protocol
+
+    // Handle path according to https://tools.ietf.org/html/rfc2616#section-5.2
+    // Tophat ignores the host when determining resource identified. However, the Host header is
+    // still required.
+    if !has_host {
+        return Err(HttpNoHost);
+    }
+    let path = httparse_req.path.ok_or(HttpNoPath)?;
 
     // Handling content-length v. transfer-encoding:
     // https://tools.ietf.org/html/rfc7230#section-3.3.3
     let content_length = content_length.unwrap_or(0);
 
+    // Finally build the rest of the req
     let body = reader.take(content_length as u64);
     let req = req
+        .method(method)
+        .version(version)
+        .uri(path)
         .body(Body::from_reader(body, Some(content_length)))
         .map_err(|_| HttpRequestBuild)?;
 
@@ -128,6 +132,8 @@ pub(crate) enum DecodeFail {
     HttpNoMethod,
     #[error("Http: no version found")]
     HttpNoVersion,
+    #[error("Http: no host found")]
+    HttpNoHost,
     #[error("Http invalid content length")]
     HttpInvalidContentLength,
     #[error("Http request could not be built")]

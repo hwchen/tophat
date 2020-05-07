@@ -21,3 +21,31 @@ Try to handle local fails in each module, bubbling up those failures so they can
 [Message Syntax and Routing](https://tools.ietf.org/html/rfc7230)
 - [Message Body Length](https://tools.ietf.org/html/rfc7230#section-3.3.3)
 [Original](https://tools.ietf.org/html/rfc2616)
+
+# URI handling
+Looks like https://tools.ietf.org/html/rfc2616#section-5.2 is the section to look at. The question is whether hyper just ignores the host, like the section says is possible?
+
+Section 19.6.1.1 (requirements for HTTP/1.1 server):
+
+- server must report 400 if no Host header
+- server must accept absolute URI
+- https://tools.ietf.org/html/rfc2616#section-19.6.1.1
+
+absolute URI: https://tools.ietf.org/html/rfc2396#section-3
+
+absoluteURI is the "whole" url, absolute path is everything after the authority excluding query.
+
+Check what happens with query strings.
+
+Looks like hyper just ignores: https://github.com/hyperium/hyper/blob/master/src/proto/h1/role.rs#L102
+
+```rust
+subject = RequestLine(
+    Method::from_bytes(req.method.unwrap().as_bytes())?,
+    req.path.unwrap().parse()?,
+);
+```
+
+This lets them just accept absolute paths also.
+
+async-h1 formats with a scheme and authority onto path, I think this is incorrect.
