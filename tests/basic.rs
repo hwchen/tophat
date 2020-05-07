@@ -24,7 +24,6 @@ fn test_empty_body() {
 
         let addr = "http://example.org";
         accept(addr, testclient.clone(), |_req, resp_wtr| async move {
-            println!("hit");
             let resp = HttpResponse::new(Body::empty());
             // Won't compile if done is not returned in Ok!
             let done = resp_wtr.send(resp).await.unwrap();
@@ -63,6 +62,89 @@ fn test_basic_request() {
             let done = resp_wtr.send(resp).await.unwrap();
 
             Ok(done)
+        })
+        .await
+        .unwrap();
+
+        testclient.assert();
+    });
+}
+#[test]
+// TODO handle malformed method
+fn test_malformed_request_method() {
+    smol::block_on(async {
+        let testclient = TestClient::new(
+            "GT /foo/bar HTTP/1.1\r\nHost: example.org\r\nContent-Length: 0\r\n\r\n",
+            "HTTP/1.1 400 Bad Request\r\ncontent-length: 0\r\n\r\n",
+        );
+
+        let addr = "http://example.org";
+        accept(addr, testclient.clone(), |_req, resp_wtr| async move {
+            let resp = HttpResponse::new(Body::empty());
+            resp_wtr.send(resp).await
+        })
+        .await
+        .unwrap();
+
+        testclient.assert();
+    });
+}
+
+#[test]
+// TODO handle malformed path/host
+fn test_malformed_request_path() {
+    smol::block_on(async {
+        let testclient = TestClient::new(
+            "GET /foo/bar HTTP/1.1\r\nHost: example.org\r\nContent-Length: 0\r\n\r\n",
+            "HTTP/1.1 400 Bad Request\r\ncontent-length: 0\r\n\r\n",
+        );
+
+        let addr = "http://example.org";
+        accept(addr, testclient.clone(), |_req, resp_wtr| async move {
+            let resp = HttpResponse::new(Body::empty());
+            resp_wtr.send(resp).await
+        })
+        .await
+        .unwrap();
+
+        testclient.assert();
+    });
+}
+
+#[test]
+fn test_malformed_request_version() {
+    smol::block_on(async {
+        let testclient = TestClient::new(
+            "GET /foo/bar HTP/1.1\r\nHost: example.org\r\nContent-Length: 0\r\n\r\n",
+            "HTTP/1.1 400 Bad Request\r\ncontent-length: 0\r\n\r\n",
+        );
+
+        let addr = "http://example.org";
+        accept(addr, testclient.clone(), |_req, resp_wtr| async move {
+            let resp = HttpResponse::new(Body::empty());
+            resp_wtr.send(resp).await
+        })
+        .await
+        .unwrap();
+
+        testclient.assert();
+    });
+}
+
+#[test]
+// TODO handle transfer-encoding chunked and content-length clash
+#[should_panic] // temporary to make this test fail
+fn test_transfer_encoding_content_length() {
+    smol::block_on(async {
+        let testclient = TestClient::new(
+            "GET /foo/bar HTTP/1.1\r\nHost: example.org\r\nContent-Length: 0\r\nTransfer-Encoding: chunked\r\n\r\n",
+            "HTTP/1.1 400 Bad Request\r\ncontent-length: 0\r\n\r\n",
+        );
+
+        let addr = "http://example.org";
+        accept(addr, testclient.clone(), |_req, resp_wtr| async move {
+            let resp = HttpResponse::new(Body::empty());
+            resp_wtr.send(resp).await
         })
         .await
         .unwrap();
