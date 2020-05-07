@@ -14,12 +14,15 @@ use tophat::{accept, Body};
 
 use test_client::TestClient;
 
+const RESP_200: &str = "HTTP/1.1 200 OK\r\ncontent-length: 0\r\n\r\n";
+const RESP_400: &str = "HTTP/1.1 400 Bad Request\r\ncontent-length: 0\r\n\r\n";
+
 #[test]
 fn test_empty_body() {
     smol::block_on(async {
         let testclient = TestClient::new(
             "GET /foo/bar HTTP/1.1\r\nHost: example.org\r\n\r\n",
-            "HTTP/1.1 200 OK\r\ncontent-length: 0\r\n\r\n"
+            RESP_200,
         );
 
         accept(testclient.clone(), |_req, resp_wtr| async move {
@@ -37,7 +40,7 @@ fn test_empty_body() {
 }
 
 #[test]
-fn test_basic_request() {
+fn test_basic_request_with_body() {
     smol::block_on(async {
         let testclient = TestClient::new(
             "GET /foo/bar HTTP/1.1\r\nHost: example.org\r\nContent-Length: 6\r\n\r\ntophat",
@@ -71,7 +74,7 @@ fn test_missing_request_method() {
     smol::block_on(async {
         let testclient = TestClient::new(
             "/foo/bar HTTP/1.1\r\nHost: example.org\r\nContent-Length: 0\r\n\r\n",
-            "HTTP/1.1 400 Bad Request\r\ncontent-length: 0\r\n\r\n",
+            RESP_400,
         );
 
         accept(testclient.clone(), |_req, resp_wtr| async move {
@@ -90,7 +93,7 @@ fn test_missing_host() {
     smol::block_on(async {
         let testclient = TestClient::new(
             "GET /foo/bar HTTP/1.1\r\nContent-Length: 0\r\n\r\n",
-            "HTTP/1.1 400 Bad Request\r\ncontent-length: 0\r\n\r\n",
+            RESP_400,
         );
 
         accept(testclient.clone(), |_req, resp_wtr| async move {
@@ -111,7 +114,7 @@ fn test_request_path() {
         // good uri path
         let testclient = TestClient::new(
             "GET /foo/bar HTTP/1.1\r\nHost: example.org\r\nContent-Length: 0\r\n\r\n",
-            "HTTP/1.1 200 OK\r\ncontent-length: 0\r\n\r\n",
+            RESP_200,
         );
 
         accept(testclient.clone(), |req, resp_wtr| async move {
@@ -128,7 +131,7 @@ fn test_request_path() {
         // good absolute uri, ignores host
         let testclient = TestClient::new(
             "GET https://wunder.org/foo/bar HTTP/1.1\r\nHost: example.org\r\nContent-Length: 0\r\n\r\n",
-            "HTTP/1.1 200 OK\r\ncontent-length: 0\r\n\r\n",
+            RESP_200,
         );
 
         accept(testclient.clone(), |req, resp_wtr| async move {
@@ -145,7 +148,7 @@ fn test_request_path() {
         // bad uri path
         let testclient = TestClient::new(
             "GET foo/bar HTTP/1.1\r\nHost: example.org\r\nContent-Length: 0\r\n\r\n",
-            "HTTP/1.1 400 Bad Request\r\ncontent-length: 0\r\n\r\n",
+            RESP_400,
         );
 
         accept(testclient.clone(), |_req, resp_wtr| async move {
@@ -164,7 +167,7 @@ fn test_malformed_request_version() {
     smol::block_on(async {
         let testclient = TestClient::new(
             "GET /foo/bar HTP/1.1\r\nHost: example.org\r\nContent-Length: 0\r\n\r\n",
-            "HTTP/1.1 400 Bad Request\r\ncontent-length: 0\r\n\r\n",
+            RESP_400,
         );
 
         accept(testclient.clone(), |_req, resp_wtr| async move {
@@ -185,7 +188,7 @@ fn test_transfer_encoding_content_length() {
     smol::block_on(async {
         let testclient = TestClient::new(
             "GET /foo/bar HTTP/1.1\r\nHost: example.org\r\nContent-Length: 0\r\nTransfer-Encoding: chunked\r\n\r\n",
-            "HTTP/1.1 400 Bad Request\r\ncontent-length: 0\r\n\r\n",
+            RESP_400,
         );
 
         accept(testclient.clone(), |_req, resp_wtr| async move {
