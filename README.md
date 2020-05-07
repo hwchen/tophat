@@ -1,4 +1,5 @@
 # tophat
+[![CI](https://github.com/hwchen/tophat/workflows/ci/badge.svg)](https://github.com/hwchen/tophat/actions?query=workflow%3Aci)
 
 An async HTTP server. Currently in pre-alpha.
 
@@ -19,6 +20,7 @@ async fn handler(req:Request) -> Result<Response, Error> {
 ```
 
 # Features
+- HTTP/1
 - Works with any tcp stream that implements `futures::{AsyncRead, AsyncWrite}`.
 - All dependencies are async-ecosystem independent.
 - Fast enough.
