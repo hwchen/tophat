@@ -5,10 +5,11 @@ use http::{
     version::Version,
     Response as HttpResponse,
 };
+use thiserror::Error as ThisError;
 
 use crate::body::Body;
 use crate::encode::Encoder;
-use crate::error::{Error, Result};
+use crate::error::Error;
 
 /// Currently, Response is not generic over Body type
 pub type Response = HttpResponse<Body>;
@@ -46,12 +47,12 @@ impl InnerResponse {
         }
     }
 
-    pub(crate) async fn send<W>(self, writer: W) -> Result<ResponseWritten>
+    pub(crate) async fn send<W>(self, writer: W) -> Result<ResponseWritten, ResponseFail>
         where W: AsyncWrite + Clone + Send + Sync + Unpin + 'static,
     {
         let mut encoder = Encoder::encode(self);
         let mut writer = writer;
-        futures_util::io::copy(&mut encoder, &mut writer).await.map_err(|err| Error::Connection(err))?;
+        futures_util::io::copy(&mut encoder, &mut writer).await.map_err(|err| ResponseFail::Connection(err))?;
         Ok(ResponseWritten)
     }
 }
@@ -69,7 +70,7 @@ where
 {
     /// send response, and TODO return number of bytes written (I guess this would be a struct for more
     /// complicated sends, like with compression)
-    pub async fn send(self, resp: Response) -> Result<ResponseWritten> {
+    pub async fn send(self, resp: Response) -> Result<ResponseWritten, Error> {
         let (parts, body) = resp.into_parts();
 
         let inner_resp = InnerResponse {
@@ -79,7 +80,7 @@ where
             body,
         };
 
-        inner_resp.send(self.writer).await
+        Ok(inner_resp.send(self.writer).await?)
     }
 }
 
@@ -87,3 +88,16 @@ where
 // ResponseWritten, to minimize boilerplate
 pub struct ResponseWritten;
 
+#[derive(ThisError, Debug)]
+pub(crate) enum ResponseFail {
+    #[error("Failure sending response: {0}")]
+    Connection(std::io::Error),
+}
+
+impl From<ResponseFail> for Error {
+    fn from(respf: ResponseFail) -> Error {
+        match respf {
+            ResponseFail::Connection(io_err) => Error::ResponseSend(io_err),
+        }
+    }
+}
