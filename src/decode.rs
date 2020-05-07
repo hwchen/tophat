@@ -144,10 +144,14 @@ pub(crate) enum DecodeFail {
 }
 
 pub(crate) fn fail_to_response_and_log(fail: DecodeFail) -> Option<InnerResponse> {
-        use DecodeFail::*;
+    use log::*;
+    use DecodeFail::*;
+
+    // TODO improve logging message
+    debug!("Decode error: {} ", fail);
 
     match fail {
         ConnectionLost(_) => None,
-        _ => InnerResponse::bad_request(),
+        _ => Some(InnerResponse::bad_request()),
     }
 }
