@@ -23,6 +23,7 @@ log = "0.4.8"
 mime = "0.3.16"
 pin-project-lite = "0.1.4"
 thiserror = "1.0.16"
+futures-timer = "3.0.2"
 
 [dev-dependencies]
 num_cpus = "1.13.0"
