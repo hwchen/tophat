@@ -40,15 +40,17 @@ fn test_request_empty_body() {
 }
 
 #[test]
-fn test_request_basic_with_body() {
+fn test_request_basic_with_body_and_query() {
     smol::block_on(async {
         let testclient = TestClient::new(
-            "GET /foo/bar HTTP/1.1\r\nHost: example.org\r\nContent-Length: 6\r\n\r\ntophat",
+            "GET /foo/bar?one=two HTTP/1.1\r\nHost: example.org\r\nContent-Length: 6\r\n\r\ntophat",
             "HTTP/1.1 200 OK\r\ncontent-length: 12\r\n\r\nHello tophat",
         );
 
         accept(testclient.clone(), |req, resp_wtr| async move {
             // some basic parsing tests
+            assert_eq!(*req.uri().path(), Uri::from_static("/foo/bar"));
+            assert_eq!(req.uri().query(), Some("one=two"));
             assert_eq!(req.version(), Version::HTTP_11);
             assert_eq!(req.method(), Method::GET);
             assert_eq!(req.headers().get(header::CONTENT_LENGTH), Some(&HeaderValue::from_bytes(b"6").unwrap()));
