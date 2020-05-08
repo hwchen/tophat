@@ -27,7 +27,7 @@ pin_project_lite::pin_project! {
 }
 
 impl InnerResponse {
-    /// used for bad request in decoding.
+    /// used for bad request in decoding. 400
     pub(crate) fn bad_request() -> Self {
         Self {
             status: StatusCode::BAD_REQUEST,
@@ -37,10 +37,20 @@ impl InnerResponse {
         }
     }
 
-    /// used for bad request in decoding.
+    /// used for bad request in decoding. 500
     pub(crate) fn internal_server_error() -> Self {
         Self {
             status: StatusCode::INTERNAL_SERVER_ERROR,
+            headers: HeaderMap::new(),
+            version: Version::default(),
+            body: Body::empty(),
+        }
+    }
+
+    /// used for version not supported in decoding. 505
+    pub(crate) fn version_not_supported() -> Self {
+        Self {
+            status: StatusCode::HTTP_VERSION_NOT_SUPPORTED,
             headers: HeaderMap::new(),
             version: Version::default(),
             body: Body::empty(),

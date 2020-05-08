@@ -60,7 +60,8 @@ where
         http::Version::HTTP_11
     } else {
         //TODO keep_alive = false, is_http_11 = false
-        http::Version::HTTP_10
+        //http::Version::HTTP_10
+        return Err(Http10NotSupported);
     };
 
     // Start with the basic request build, so we can add headers directly.
@@ -138,6 +139,8 @@ pub(crate) enum DecodeFail {
     HttpInvalidContentLength,
     #[error("Http request could not be built")]
     HttpRequestBuild,
+    #[error("Http version 1.0 not supported")]
+    Http10NotSupported,
 
     // conversions related to http and httparse lib
     #[error("Http header parsing error: {0}")]
@@ -165,6 +168,7 @@ pub(crate) fn fail_to_response_and_log(fail: DecodeFail) -> Option<InnerResponse
 
     match fail {
         ConnectionLost(_) => None,
+        Http10NotSupported => Some(InnerResponse::version_not_supported()),
         _ => Some(InnerResponse::bad_request()),
     }
 }

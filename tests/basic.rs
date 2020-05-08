@@ -18,7 +18,7 @@ const RESP_200: &str = "HTTP/1.1 200 OK\r\ncontent-length: 0\r\n\r\n";
 const RESP_400: &str = "HTTP/1.1 400 Bad Request\r\ncontent-length: 0\r\n\r\n";
 
 #[test]
-fn test_empty_body() {
+fn test_request_empty_body() {
     smol::block_on(async {
         let testclient = TestClient::new(
             "GET /foo/bar HTTP/1.1\r\nHost: example.org\r\n\r\n",
@@ -40,7 +40,7 @@ fn test_empty_body() {
 }
 
 #[test]
-fn test_basic_request_with_body() {
+fn test_request_basic_with_body() {
     smol::block_on(async {
         let testclient = TestClient::new(
             "GET /foo/bar HTTP/1.1\r\nHost: example.org\r\nContent-Length: 6\r\n\r\ntophat",
@@ -70,7 +70,7 @@ fn test_basic_request_with_body() {
     });
 }
 #[test]
-fn test_missing_request_method() {
+fn test_request_missing_method() {
     smol::block_on(async {
         let testclient = TestClient::new(
             "/foo/bar HTTP/1.1\r\nHost: example.org\r\nContent-Length: 0\r\n\r\n",
@@ -89,7 +89,7 @@ fn test_missing_request_method() {
 }
 
 #[test]
-fn test_missing_host() {
+fn test_request_missing_host() {
     smol::block_on(async {
         let testclient = TestClient::new(
             "GET /foo/bar HTTP/1.1\r\nContent-Length: 0\r\n\r\n",
@@ -163,11 +163,29 @@ fn test_request_path() {
 }
 
 #[test]
-fn test_malformed_request_version() {
+fn test_request_version() {
+    // malformed version
     smol::block_on(async {
         let testclient = TestClient::new(
             "GET /foo/bar HTP/1.1\r\nHost: example.org\r\nContent-Length: 0\r\n\r\n",
             RESP_400,
+        );
+
+        accept(testclient.clone(), |_req, resp_wtr| async move {
+            let resp = HttpResponse::new(Body::empty());
+            resp_wtr.send(resp).await
+        })
+        .await
+        .unwrap();
+
+        testclient.assert();
+    });
+
+    // version 1.0 not supported
+    smol::block_on(async {
+        let testclient = TestClient::new(
+            "GET /foo/bar HTTP/1.0\r\nHost: example.org\r\nContent-Length: 0\r\n\r\n",
+            "HTTP/1.1 505 HTTP Version Not Supported\r\ncontent-length: 0\r\n\r\n",
         );
 
         accept(testclient.clone(), |_req, resp_wtr| async move {
