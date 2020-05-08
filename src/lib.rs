@@ -19,6 +19,8 @@ use crate::response::InnerResponse;
 pub use crate::response::{ResponseWriter, ResponseWritten};
 
 /// Accept a new incoming Http/1.1 connection
+///
+/// Automatically support KeepAlive
 // All errors should be bubbled up to this fn to handle, either in logs or in responses.
 pub async fn accept<RW, F, Fut>(io: RW, endpoint: F) -> Result<()>
 where
