@@ -8,7 +8,7 @@ bench:
     cargo watch -x 'run --release --example bench'
 
 basic:
-    cargo watch -x 'run --release --example basic'
+    RUST_LOG=info cargo watch -x 'run --release --example basic'
 
 clippy:
     cargo watch -x '+nightly clippy -- -D warnings -Z unstable-options'

@@ -5,6 +5,8 @@ use piper::Arc;
 use tophat::accept;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    pretty_env_logger::init();
+
     let listener = Async::<TcpListener>::bind("127.0.0.1:9999")?;
 
     smol::run(async {

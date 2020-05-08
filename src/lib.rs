@@ -53,7 +53,10 @@ where
             // this arm is for with timeout
             match timeout(timeout_duration, req_fut).await {
                 Ok(Ok(Some(r))) => r,
-                Ok(Ok(None)) | Err(TimeoutError { .. }) => break, // EOF or timeout
+                Ok(Ok(None)) | Err(TimeoutError { .. }) => {
+                    log::debug!("Timeout Error");
+                    break; // EOF or timeout
+                },
                 Ok(Err(err)) => {
                     // send a resp for errors from decoding, and continue on to next request
                     if let Some(err_resp) = decode::fail_to_response_and_log(err) {

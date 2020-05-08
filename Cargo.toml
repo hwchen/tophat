@@ -28,4 +28,5 @@ futures-timer = "3.0.2"
 [dev-dependencies]
 num_cpus = "1.13.0"
 piper = "0.1.1"
+pretty_env_logger = "0.4.0"
 smol = "0.1.4"
