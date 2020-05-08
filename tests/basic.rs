@@ -49,7 +49,7 @@ fn test_request_basic_with_body_and_query() {
 
         accept(testclient.clone(), |req, resp_wtr| async move {
             // some basic parsing tests
-            assert_eq!(*req.uri().path(), Uri::from_static("/foo/bar"));
+            assert_eq!(req.uri().path(), Uri::from_static("/foo/bar"));
             assert_eq!(req.uri().query(), Some("one=two"));
             assert_eq!(req.version(), Version::HTTP_11);
             assert_eq!(req.method(), Method::GET);
