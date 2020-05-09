@@ -33,6 +33,8 @@ impl Body {
         }
     }
 
+    /// Length: None will result in Transfer-Encoding: chunked
+    /// length: Some(n) will result in fixed body
     pub fn from_reader(
         reader: impl AsyncBufRead + Unpin + Send + Sync + 'static,
         len: Option<usize>,

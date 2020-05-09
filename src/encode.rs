@@ -49,7 +49,7 @@ impl Encoder {
     fn start(&mut self, cx: &mut Context<'_>, buf: &mut [u8]) -> Poll<std::io::Result<usize>> {
         let version = self.resp.version;
         let status = self.resp.status;
-        // TODO deal with date later
+        // TODO don't double date header
         let date = fmt_http_date(std::time::SystemTime::now());
 
         std::io::Write::write_fmt(&mut self.head_buf, format_args!("{:?} {}\r\n", version, status))?;
@@ -146,7 +146,7 @@ impl Encoder {
         }
     }
 
-        /// Encode an AsyncBufRead using "chunked" framing. This is used for streams
+    /// Encode an AsyncBufRead using "chunked" framing. This is used for streams
     /// whose length is not known up front.
     fn encode_chunked_body(&mut self, cx: &mut Context<'_>, buf: &mut [u8]) -> Poll<std::io::Result<usize>> {
         let buf = &mut buf[self.bytes_read..];

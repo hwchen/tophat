@@ -1,6 +1,6 @@
 //! TestClient for testing server
 
-use futures_io::{AsyncRead, AsyncWrite};
+use futures_io::{AsyncBufRead, AsyncRead, AsyncWrite};
 use std::io;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
@@ -11,16 +11,28 @@ pub struct TestClient {
     // bool is true if read/written, fallse if not yet read/written
     // TODO make rdr and wtr structs so this is easier to understand.
     read_buf: Arc<Mutex<(Vec<u8>, bool)>>,
-    write_buf: Arc<Mutex<(Vec<u8>, bool)>>,
+    write_buf: Arc<Mutex<(Vec<u8>, usize)>>,
     expected: Vec<u8>,
+    // sometimes writer needs to write more than once, like for chunks
+    num_writes: usize,
 }
 
 impl TestClient {
     pub fn new(req: &str, expected_resp: &str) -> Self {
         Self {
             read_buf: Arc::new(Mutex::new((req.to_owned().into_bytes(), false))),
-            write_buf: Arc::new(Mutex::new((Vec::new(), false))),
+            write_buf: Arc::new(Mutex::new((Vec::new(), 0))),
             expected: expected_resp.to_owned().into_bytes(),
+            num_writes: 1,
+        }
+    }
+
+    pub fn new_with_writes(req: &str, expected_resp: &str, writes: usize) -> Self {
+        Self {
+            read_buf: Arc::new(Mutex::new((req.to_owned().into_bytes(), false))),
+            write_buf: Arc::new(Mutex::new((Vec::new(), 0))),
+            expected: expected_resp.to_owned().into_bytes(),
+            num_writes: writes,
         }
     }
     pub fn assert(self) {
@@ -50,8 +62,8 @@ impl AsyncRead for TestClient {
 impl AsyncWrite for TestClient {
     fn poll_write(self: Pin<&mut Self>, _cx: &mut Context, buf: &[u8]) -> Poll<io::Result<usize>> {
         let mut wtr = self.write_buf.lock().unwrap();
-        if !wtr.1 {
-            wtr.1 = true;
+        if wtr.1 < self.num_writes {
+            wtr.1 += 1;
             wtr.0.extend_from_slice(buf);
             Poll::Ready(Ok(wtr.0.len()))
         } else {
@@ -80,6 +92,53 @@ fn remove_date(b: &[u8]) -> Vec<u8> {
         res
     } else {
         b.to_vec()
+    }
+}
+
+pub(crate) struct Cursor<T> {
+    inner: std::io::Cursor<T>,
+}
+
+impl<T> Cursor<T> {
+    #[allow(dead_code)]
+    pub(crate) fn new(t: T) -> Self {
+        Self {
+            inner: std::io::Cursor::new(t),
+        }
+    }
+}
+
+impl<T> AsyncRead for Cursor<T>
+where
+    T: AsRef<[u8]> + Unpin,
+{
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        _cx: &mut Context<'_>,
+        buf: &mut [u8],
+    ) -> Poll<std::io::Result<usize>> {
+        Poll::Ready(std::io::Read::read(&mut self.inner, buf))
+    }
+
+    fn poll_read_vectored(
+        mut self: Pin<&mut Self>,
+        _cx: &mut Context<'_>,
+        bufs: &mut [std::io::IoSliceMut<'_>],
+    ) -> Poll<std::io::Result<usize>> {
+        Poll::Ready(std::io::Read::read_vectored(&mut self.inner, bufs))
+    }
+}
+
+impl<T> AsyncBufRead for Cursor<T>
+where
+    T: AsRef<[u8]> + Unpin,
+{
+    fn poll_fill_buf(self: Pin<&mut Self>, _cx: &mut Context<'_>,) -> Poll<io::Result<&'_ [u8]>> {
+        Poll::Ready(std::io::BufRead::fill_buf(&mut self.get_mut().inner))
+    }
+
+    fn consume(mut self: Pin<&mut Self>, amt: usize) {
+        std::io::BufRead::consume(&mut self.inner, amt)
     }
 }
 

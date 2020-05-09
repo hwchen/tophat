@@ -1,4 +1,6 @@
+mod chunked_text_big;
 mod test_client;
+use test_client::Cursor;
 
 use http::Response as HttpResponse;
 use http::{
@@ -297,6 +299,57 @@ fn test_decode_transfer_encoding_chunked() {
             assert!(trailer.headers.is_empty());
 
             let resp = HttpResponse::new(Body::empty());
+            resp_wtr.send(resp).await
+        })
+        .await
+        .unwrap();
+
+        testclient.assert();
+    });
+}
+
+#[test]
+fn test_encode_transfer_encoding_chunked() {
+    smol::block_on(async {
+        // 13 is D in hexadecimal.
+        // Need two writes because there's a chunk and then there's the end.
+        let testclient = TestClient::new_with_writes(
+            "GET /foo/bar HTTP/1.1\r\nHost: example.org\r\nContent-Length: 0\r\n\r\n",
+            "HTTP/1.1 200 OK\r\ntransfer-encoding: chunked\r\n\r\nD\r\nHello tophat!\r\n0\r\n\r\n",
+            2,
+        );
+
+        accept(testclient.clone(), |_req, resp_wtr| async move {
+            let body_str = Cursor::new("Hello tophat!");
+            let body = Body::from_reader(body_str, None);
+
+            let resp = HttpResponse::new(body);
+            resp_wtr.send(resp).await
+        })
+        .await
+        .unwrap();
+
+        testclient.assert();
+    });
+}
+
+#[test]
+#[ignore] // TODO figure out how to line up chunks
+fn test_encode_transfer_encoding_chunked_big() {
+    smol::block_on(async {
+        // 13 is D in hexadecimal.
+        // Need two writes because there's a chunk and then there's the end.
+        let testclient = TestClient::new_with_writes(
+            "GET /foo/bar HTTP/1.1\r\nHost: example.org\r\nContent-Length: 0\r\n\r\n",
+            chunked_text_big::RESPONSE,
+            1,
+        );
+
+        accept(testclient.clone(), |_req, resp_wtr| async move {
+            let body_str = Cursor::new(chunked_text_big::TEXT);
+            let body = Body::from_reader(body_str, None);
+
+            let resp = HttpResponse::new(body);
             resp_wtr.send(resp).await
         })
         .await
