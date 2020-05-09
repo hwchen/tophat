@@ -1,3 +1,4 @@
+// chunked decoder module is largely from async-h1, with modifications to use http lib
 #![allow(clippy::len_zero)]
 
 use http::header::{HeaderName, HeaderValue};
@@ -210,6 +211,7 @@ impl<R: AsyncRead + Unpin> AsyncRead for ChunkedDecoder<R> {
         cx: &mut Context<'_>,
         buf: &mut [u8],
     ) -> Poll<io::Result<usize>> {
+        println!("Decode chunks polled");
         let this = &mut *self;
 
         let mut n = std::mem::replace(&mut this.current, 0..0);

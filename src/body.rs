@@ -60,7 +60,6 @@ impl Body {
         }
     }
 
-    // TODO make errors
     pub async fn into_bytes(mut self) -> Result<Vec<u8>> {
         let mut buf = Vec::with_capacity(1024);
         self.read_to_end(&mut buf).await.map_err(Error::BodyConversion)?;
@@ -73,6 +72,20 @@ impl Body {
         Ok(buf)
     }
 
+    pub async fn into_bytes_with_trailer(mut self) -> Result<(Vec<u8>, Option<Result<Trailers>>)> {
+        let mut buf = Vec::with_capacity(1024);
+        self.read_to_end(&mut buf).await.map_err(Error::BodyConversion)?;
+        let trailer = self.recv_trailers().await;
+        Ok((buf, trailer))
+    }
+
+    pub async fn into_string_with_trailer(mut self) -> Result<(String, Option<Result<Trailers>>)> {
+        let mut buf = String::with_capacity(self.length.unwrap_or(0));
+        self.read_to_string(&mut buf).await.map_err(Error::BodyConversion)?;
+        let trailer = self.recv_trailers().await;
+        Ok((buf, trailer))
+    }
+
     pub fn send_trailers(&mut self) -> TrailersSender {
         let sender = self
             .trailer_sender
@@ -81,6 +94,8 @@ impl Body {
         TrailersSender::new(sender)
     }
 
+    /// Don't use this directly if you also want to read the body.
+    /// In that case, prefer `into_{bytes, string}_with_trailer()
     pub async fn recv_trailers(&self) -> Option<Result<Trailers>> {
         self.trailer_receiver.recv().await
     }

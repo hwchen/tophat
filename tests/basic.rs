@@ -4,6 +4,7 @@ use http::Response as HttpResponse;
 use http::{
     header::{
         self,
+        HeaderName,
         HeaderValue,
     },
     method::Method,
@@ -212,6 +213,89 @@ fn test_transfer_encoding_content_length() {
         );
 
         accept(testclient.clone(), |_req, resp_wtr| async move {
+            let resp = HttpResponse::new(Body::empty());
+            resp_wtr.send(resp).await
+        })
+        .await
+        .unwrap();
+
+        testclient.assert();
+    });
+}
+
+#[test]
+fn test_decode_transfer_encoding_chunked() {
+    smol::block_on(async {
+        let testclient = TestClient::new(
+            "GET /foo/bar HTTP/1.1\r\nHost: example.org\r\nTransfer-Encoding: chunked\r\n\r\n\
+                7\r\n\
+                Mozilla\r\n\
+                9\r\n\
+                Developer\r\n\
+                7\r\n\
+                Network\r\n\
+                0\r\n\
+                Expires: Wed, 21 Oct 2015 07:28:00 GMT\r\n\
+                \r\n",
+            RESP_200,
+        );
+
+        accept(testclient.clone(), |req, resp_wtr| async move {
+            // If you want to wait for trailer, need to use this method.
+            // Reading body and trailer separately will run into borrow errors
+            let (body, trailer) = req.into_body()
+                .into_string_with_trailer()
+                .await
+                .unwrap();
+
+            let trailer = trailer.unwrap().unwrap();
+
+            assert_eq!(body, "MozillaDeveloperNetwork");
+            assert_eq!(
+                trailer.headers.iter().collect::<Vec<_>>(),
+                vec![
+                    (&HeaderName::from_bytes(b"Expires").unwrap(),
+                    &HeaderValue::from_bytes(b"Wed, 21 Oct 2015 07:28:00 GMT").unwrap(),
+                )]
+            );
+
+            let resp = HttpResponse::new(Body::empty());
+            resp_wtr.send(resp).await
+        })
+        .await
+        .unwrap();
+
+        testclient.assert();
+    });
+
+    // no trailer
+    smol::block_on(async {
+        let testclient = TestClient::new(
+            "GET /foo/bar HTTP/1.1\r\nHost: example.org\r\nTransfer-Encoding: chunked\r\n\r\n\
+                7\r\n\
+                Mozilla\r\n\
+                9\r\n\
+                Developer\r\n\
+                7\r\n\
+                Network\r\n\
+                0\r\n\
+                \r\n",
+            RESP_200,
+        );
+
+        accept(testclient.clone(), |req, resp_wtr| async move {
+            // If you want to wait for trailer, need to use this method.
+            // Reading body and trailer separately will run into borrow errors
+            let (body, trailer) = req.into_body()
+                .into_string_with_trailer()
+                .await
+                .unwrap();
+
+            let trailer = trailer.unwrap().unwrap();
+
+            assert_eq!(body, "MozillaDeveloperNetwork");
+            assert!(trailer.headers.is_empty());
+
             let resp = HttpResponse::new(Body::empty());
             resp_wtr.send(resp).await
         })

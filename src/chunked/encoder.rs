@@ -1,3 +1,4 @@
+// chunked encoder module is largely from async-h1, with modifications to use http lib
 #![allow(clippy::len_zero)]
 #![allow(clippy::manual_saturating_arithmetic)]
 
