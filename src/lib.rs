@@ -1,4 +1,4 @@
-// just the server for now
+#![deny(unsafe_code)]
 
 mod body;
 mod chunked;

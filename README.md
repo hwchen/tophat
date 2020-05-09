@@ -23,6 +23,8 @@ async fn handler(req:Request) -> Result<Response, Error> {
 - HTTP/1.1
 - Works with any tcp stream that implements `futures::{AsyncRead, AsyncWrite}`.
 - All dependencies are async-ecosystem independent.
+- Not meant to be a framework; minimal abstraction.
+- #[deny(unsafe_code)]
 - Fast enough.
 
 The goal is to have completely correct handling of the HTTP protocol
