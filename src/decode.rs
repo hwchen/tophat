@@ -12,6 +12,7 @@ use thiserror::Error as ThisError;
 
 use crate::Request;
 use crate::body::Body;
+use crate::chunked::ChunkedDecoder;
 use crate::response::InnerResponse;
 
 const LF: u8 = b'\n';
@@ -71,6 +72,8 @@ where
     // TODO check hyper for all the subtleties
     let mut content_length = None;
     let mut has_host = false;
+    let mut is_te = false;
+    let mut is_chunked = false;
     #[allow(clippy::borrow_interior_mutable_const)] // TODO see if I can remove this later
     for header in httparse_req.headers.iter() {
         if header.name == header::CONTENT_LENGTH {
@@ -81,7 +84,8 @@ where
                 .map_err(|_| HttpInvalidContentLength)?
             );
         } else if header.name == header::TRANSFER_ENCODING {
-            return Err(HttpTransferEncodingNotSupported);
+            is_te = true;
+            is_chunked = header.value == b"chunked"; // TODO make sure there's no variation in chunked
         } else if header.name == header::HOST {
             has_host = true;
         }
@@ -104,16 +108,27 @@ where
     let path = httparse_req.path.ok_or(HttpNoPath)?;
 
     // Handling content-length v. transfer-encoding:
-    // https://tools.ietf.org/html/rfc7230#section-3.3.3
+    // TODO double-check with https://tools.ietf.org/html/rfc7230#section-3.3.3
     let content_length = content_length.unwrap_or(0);
 
+    // Decode body as fixed_body or as chunked
+    // TODO set MIME type on body
+    let body = if is_te && is_chunked {
+        let mut body = Body::empty();
+        let trailer_sender = body.send_trailers();
+        let reader = BufReader::new(ChunkedDecoder::new(reader, trailer_sender));
+        body.set_inner(reader, None);
+        body
+    } else {
+        Body::from_reader(reader.take(content_length as u64), Some(content_length))
+    };
+
     // Finally build the rest of the req
-    let body = reader.take(content_length as u64);
     let req = req
         .method(method)
         .version(version)
         .uri(path)
-        .body(Body::from_reader(body, Some(content_length)))
+        .body(body)
         .map_err(|_| HttpRequestBuild)?;
 
     Ok(Some(req))
@@ -153,10 +168,6 @@ pub(crate) enum DecodeFail {
     HttpHeaderName(#[from] http::header::InvalidHeaderName),
     #[error("Http Header value error: {0}")]
     HttpHeaderValue(#[from] http::header::InvalidHeaderValue),
-
-    // Temporary error until transfer coding supported
-    #[error("Http transfer encoding not supported")]
-    HttpTransferEncodingNotSupported,
 }
 
 pub(crate) fn fail_to_response_and_log(fail: DecodeFail) -> Option<InnerResponse> {

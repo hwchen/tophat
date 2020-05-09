@@ -10,6 +10,7 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 
 use crate::response::InnerResponse;
+use crate::chunked::ChunkedEncoder;
 
 pub(crate) struct Encoder {
     resp: InnerResponse,
@@ -24,6 +25,8 @@ pub(crate) struct Encoder {
 
     content_length: Option<usize>,
     body_bytes_read: usize,
+
+    chunked: ChunkedEncoder,
 }
 
 impl Encoder {
@@ -38,6 +41,7 @@ impl Encoder {
             head_bytes_read: 0,
             content_length,
             body_bytes_read: 0,
+            chunked: ChunkedEncoder::new(),
         }
     }
 
@@ -89,8 +93,9 @@ impl Encoder {
                     self.encode_fixed_body(cx, buf)
                 }
                 None => {
-                    // TODO for now just end
-                    Poll::Ready(Ok(self.bytes_read))
+                    self.state = EncoderState::ChunkedBody;
+                    log::trace!("Server response encoding: chunked body");
+                    self.encode_chunked_body(cx, buf)
                 }
             }
         } else {
@@ -140,6 +145,28 @@ impl Encoder {
             self.encode_fixed_body(cx, buf)
         }
     }
+
+        /// Encode an AsyncBufRead using "chunked" framing. This is used for streams
+    /// whose length is not known up front.
+    fn encode_chunked_body(&mut self, cx: &mut Context<'_>, buf: &mut [u8]) -> Poll<std::io::Result<usize>> {
+        let buf = &mut buf[self.bytes_read..];
+        match self.chunked.encode(&mut self.resp, cx, buf) {
+            Poll::Ready(Ok(read)) => {
+                self.bytes_read += read;
+                if self.bytes_read == 0 {
+                    self.state = EncoderState::Done
+                }
+                Poll::Ready(Ok(self.bytes_read))
+            }
+            Poll::Ready(Err(err)) => Poll::Ready(Err(err)),
+            Poll::Pending => {
+                if self.bytes_read > 0 {
+                    return Poll::Ready(Ok(self.bytes_read));
+                }
+                Poll::Pending
+            }
+        }
+    }
 }
 
 impl AsyncRead for Encoder {
@@ -156,6 +183,7 @@ impl AsyncRead for Encoder {
             Start => self.start(cx, buf),
             Head => self.encode_head(cx, buf),
             FixedBody => self.encode_fixed_body(cx, buf),
+            ChunkedBody => self.encode_chunked_body(cx, buf),
             Done => Poll::Ready(Ok(0)),
         }
     }
@@ -166,5 +194,6 @@ enum EncoderState {
     Start,
     Head,
     FixedBody,
+    ChunkedBody,
     Done,
 }
