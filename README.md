@@ -1,7 +1,7 @@
 # tophat
 [![CI](https://github.com/hwchen/tophat/workflows/ci/badge.svg)](https://github.com/hwchen/tophat/actions?query=workflow%3Aci)
 
-An async HTTP server. Currently in pre-alpha.
+An async HTTP server library. Currently in pre-alpha.
 
 This:
 ```rust
@@ -20,15 +20,16 @@ async fn handler(req:Request) -> Result<Response, Error> {
 ```
 
 # Features
-- HTTP/1
+- HTTP/1.1
 - Works with any tcp stream that implements `futures::{AsyncRead, AsyncWrite}`.
 - All dependencies are async-ecosystem independent.
 - Fast enough.
 
-# Upcoming
-- Transfer-encoding
-- Completely correct handling of HTTP protocol
-- Request/Response logging
+The goal is to have completely correct handling of the HTTP protocol
+
+# Thanks
+Especially to [async-h1](https://github.com/http-rs/async-h1), whose eye for structure and design I appreciate, and whose code base tophat is built from.
+And to [hyper](https://github.com/hyperium/hyper), whose devotion to performance and correctness is inspiring, and whose basic http libraries tophat has incorporated.
 
 # License
 
