@@ -74,6 +74,7 @@ impl Body {
         Ok(buf)
     }
 
+    /// sending trailers not yet supported
     pub async fn into_bytes_with_trailer(mut self) -> Result<(Vec<u8>, Option<Result<Trailers>>)> {
         let mut buf = Vec::with_capacity(1024);
         self.read_to_end(&mut buf).await.map_err(Error::BodyConversion)?;
@@ -81,6 +82,7 @@ impl Body {
         Ok((buf, trailer))
     }
 
+    /// sending trailers not yet supported
     pub async fn into_string_with_trailer(mut self) -> Result<(String, Option<Result<Trailers>>)> {
         let mut buf = String::with_capacity(self.length.unwrap_or(0));
         self.read_to_string(&mut buf).await.map_err(Error::BodyConversion)?;
