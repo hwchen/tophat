@@ -1,3 +1,4 @@
+#![allow(clippy::borrow_interior_mutable_const)]
 // TODO support more than fixed length body
 //
 // Note: I fixed the encoding ranges on the buffer, and used bytes_read correctly.
@@ -55,6 +56,9 @@ impl Encoder {
         } else {
             None
         };
+        let headers = self.resp.headers.iter()
+            .filter(|(h, _)| **h != header::CONTENT_LENGTH)
+            .filter(|(h, _)| **h != header::TRANSFER_ENCODING);
 
         std::io::Write::write_fmt(&mut self.head_buf, format_args!("{:?} {}\r\n", version, status))?;
         if let Some(len) = self.content_length {
@@ -65,7 +69,7 @@ impl Encoder {
         if let Some(date) = date {
             std::io::Write::write_fmt(&mut self.head_buf, format_args!("date: {}\r\n", date)).unwrap();
         }
-        for (header, value) in &self.resp.headers {
+        for (header, value) in headers {
             // TODO check this: shouldn't head be &HeaderName, not Option<HeaderName>?
             std::io::Write::write_fmt(&mut self.head_buf, format_args!("{}: {}\r\n", header, value.to_str().unwrap()))?;
         }

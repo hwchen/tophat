@@ -224,6 +224,48 @@ fn test_transfer_encoding_content_length() {
         testclient.assert();
     });
 }
+
+#[test]
+fn test_dont_allow_user_set_body_type_header() {
+    // Even if user sets the header for content-length or transfer-encoding, just ignore because
+    // the encoding step will set it automatically
+    //
+    // Just test the two conflicting cases
+    smol::block_on(async {
+        let testclient = TestClient::new(
+            "GET /foo/bar HTTP/1.1\r\nHost: example.org\r\nContent-Length: 0\r\n\r\n",
+            RESP_200,
+        );
+
+        accept(testclient.clone(), |_req, resp_wtr| async move {
+            let mut resp = HttpResponse::new(Body::empty());
+            resp.headers_mut().append(header::TRANSFER_ENCODING, "chunked".parse().unwrap());
+            resp_wtr.send(resp).await
+        })
+        .await
+        .unwrap();
+
+        testclient.assert();
+    });
+
+    smol::block_on(async {
+        let testclient = TestClient::new(
+            "GET /foo/bar HTTP/1.1\r\nHost: example.org\r\nContent-Length: 0\r\n\r\n",
+            "HTTP/1.1 200 OK\r\ntransfer-encoding: chunked\r\n\r\n0\r\n\r\n",
+        );
+
+        accept(testclient.clone(), |_req, resp_wtr| async move {
+            let mut resp = HttpResponse::new(Body::from_reader(Cursor::new(""), None));
+            resp.headers_mut().append(header::CONTENT_LENGTH, "20".parse().unwrap());
+            resp_wtr.send(resp).await
+        })
+        .await
+        .unwrap();
+
+        testclient.assert();
+    });
+}
+
 #[test]
 fn test_response_date() {
     // make sure that date isn't doubled if it's also set in response
