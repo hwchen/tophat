@@ -1,3 +1,6 @@
+#![allow(clippy::len_zero)]
+#![allow(clippy::manual_saturating_arithmetic)]
+
 use std::io;
 use std::pin::Pin;
 

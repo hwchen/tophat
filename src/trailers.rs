@@ -11,6 +11,12 @@ pub struct Trailers {
 impl Trailers {
     /// Create a new instance of `Trailers`.
     pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+impl Default for Trailers {
+    fn default() -> Self {
         Self {
             headers: HeaderMap::new(),
         }

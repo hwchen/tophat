@@ -1,3 +1,5 @@
+#![allow(clippy::len_zero)]
+
 use http::header::{HeaderName, HeaderValue};
 use std::fmt;
 use std::future::Future;
