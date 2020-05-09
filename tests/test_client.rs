@@ -35,8 +35,19 @@ impl TestClient {
             num_writes: writes,
         }
     }
+
     pub fn assert(self) {
         let write_buf = self.write_buf.lock().unwrap();
+        let resp = remove_date(&write_buf.0);
+        assert_eq!(String::from_utf8(resp).unwrap(), String::from_utf8(self.expected).unwrap());
+    }
+
+    pub fn assert_with_resp_date(self, date: &str) {
+        let write_buf = self.write_buf.lock().unwrap();
+
+        let resp_with_date = String::from_utf8(write_buf.0.clone()).unwrap();
+        resp_with_date.find(date).unwrap();
+
         let resp = remove_date(&write_buf.0);
         assert_eq!(String::from_utf8(resp).unwrap(), String::from_utf8(self.expected).unwrap());
     }

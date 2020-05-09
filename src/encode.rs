@@ -5,6 +5,7 @@
 // must have mucked up what the stream was reading back out.
 
 use futures_io::AsyncRead;
+use http::header;
 use httpdate::fmt_http_date;
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -49,8 +50,11 @@ impl Encoder {
     fn start(&mut self, cx: &mut Context<'_>, buf: &mut [u8]) -> Poll<std::io::Result<usize>> {
         let version = self.resp.version;
         let status = self.resp.status;
-        // TODO don't double date header
-        let date = fmt_http_date(std::time::SystemTime::now());
+        let date = if !self.resp.headers.contains_key(header::DATE) {
+            Some(fmt_http_date(std::time::SystemTime::now()))
+        } else {
+            None
+        };
 
         std::io::Write::write_fmt(&mut self.head_buf, format_args!("{:?} {}\r\n", version, status))?;
         if let Some(len) = self.content_length {
@@ -58,7 +62,9 @@ impl Encoder {
         } else {
             std::io::Write::write_fmt(&mut self.head_buf, format_args!("transfer-encoding: chunked\r\n"))?;
         }
-        std::io::Write::write_fmt(&mut self.head_buf, format_args!("date: {}\r\n", date)).unwrap();
+        if let Some(date) = date {
+            std::io::Write::write_fmt(&mut self.head_buf, format_args!("date: {}\r\n", date)).unwrap();
+        }
         for (header, value) in &self.resp.headers {
             // TODO check this: shouldn't head be &HeaderName, not Option<HeaderName>?
             std::io::Write::write_fmt(&mut self.head_buf, format_args!("{}: {}\r\n", header, value.to_str().unwrap()))?;

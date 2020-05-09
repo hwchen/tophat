@@ -224,6 +224,28 @@ fn test_transfer_encoding_content_length() {
         testclient.assert();
     });
 }
+#[test]
+fn test_response_date() {
+    // make sure that date isn't doubled if it's also set in response
+    // also make sure that the date header was passed through
+    smol::block_on(async {
+        let testclient = TestClient::new(
+            "GET /foo/bar HTTP/1.1\r\nHost: example.org\r\nContent-Length: 0\r\nTransfer-Encoding: chunked\r\n\r\n",
+            RESP_200,
+        );
+
+        accept(testclient.clone(), |_req, resp_wtr| async move {
+            let mut resp = HttpResponse::new(Body::empty());
+            resp.headers_mut().append(header::DATE, "Wed, 21 Oct 2015 07:28:00 GMT".parse().unwrap());
+            resp_wtr.send(resp).await
+        })
+        .await
+        .unwrap();
+
+        // One Date header should be stripped out by TestClient
+        testclient.assert_with_resp_date("Wed, 21 Oct 2015 07:28:00 GMT");
+    });
+}
 
 #[test]
 fn test_decode_transfer_encoding_chunked() {
