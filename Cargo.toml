@@ -30,6 +30,7 @@ thiserror = "1.0.16"
 
 [dev-dependencies]
 num_cpus = "1.13.0"
+path-tree = "0.1.9"
 piper = "0.1.1"
 pretty_env_logger = "0.4.0"
 smol = "0.1.4"
