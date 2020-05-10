@@ -15,7 +15,8 @@ use tophat::server::{accept, Request, ResponseWriter, ResponseWritten, Result};
 
 type Params = Vec<(String, String)>;
 
-type Handler<W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static> = fn(Request, ResponseWriter<W>, Params) -> Pin<Box<dyn Future<Output = Result<ResponseWritten>> + Send>>;
+type Handler<W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static> =
+    fn(Request, ResponseWriter<W>, Params) -> Pin<Box<dyn Future<Output = Result<ResponseWritten>> + Send>>;
 
 fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     pretty_env_logger::init();

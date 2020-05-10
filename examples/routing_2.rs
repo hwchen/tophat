@@ -10,16 +10,16 @@ use path_tree::PathTree;
 use piper::Arc;
 use tophat::server::{accept, Request, ResponseWriter, ResponseWritten, Result};
 
-type Params<'a> = Vec<(&'a str, &'a str)>;
+type Params = Vec<(String, String)>;
 
 
 fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     pretty_env_logger::init();
 
     //let mut tree = PathTree::<Box<dyn Endpoint<_>>>::new();
-    let tree = PathTree::<Box<dyn Endpoint<_>>>::new();
-    //tree.insert("/GET/:name", Box::new(hello_user));
-    //tree.insert("/GET/rust", Box::new(hello_rust));
+    let mut tree = PathTree::<Box<dyn Endpoint<_>>>::new();
+    tree.insert("/GET/:name", Box::new(hello_user));
+    tree.insert("/GET/rust", Box::new(hello_rust));
     let tree = Arc::new(tree);
 
     let listener = Async::<TcpListener>::bind("127.0.0.1:9999")?;
@@ -95,13 +95,13 @@ pub(crate) type DynEndpoint<W> = dyn Endpoint<W>;
 
 impl<F: Send + Sync + 'static, Fut, Res, W> Endpoint<W> for F
 where
-    F: Fn(Request) -> Fut,
+    F: Fn(Request, ResponseWriter<W>) -> Fut,
     Fut: Future<Output = Result<Res>> + Send + 'static,
     Res: Into<ResponseWritten>,
     W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
 {
-    fn call<'a>(&'a self, req: Request, _resp: ResponseWriter<W>) -> BoxFuture<'a, Result<ResponseWritten>> {
-        let fut = (self)(req);
+    fn call<'a>(&'a self, req: Request, resp: ResponseWriter<W>) -> BoxFuture<'a, Result<ResponseWritten>> {
+        let fut = (self)(req, resp);
         Box::pin(async move {
             let res = fut.await?;
             Ok(res.into())
