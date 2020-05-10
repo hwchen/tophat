@@ -112,7 +112,6 @@ where
     let content_length = content_length.unwrap_or(0);
 
     // Decode body as fixed_body or as chunked
-    // TODO set MIME type on body
     let body = if is_te && is_chunked {
         let mut body = Body::empty();
         let trailer_sender = body.send_trailers();
