@@ -290,6 +290,27 @@ fn test_response_date() {
 }
 
 #[test]
+fn test_set_content_type_mime() {
+    smol::block_on(async {
+        let testclient = TestClient::new(
+            "GET /foo/bar HTTP/1.1\r\nHost: example.org\r\nContent-Length: 0\r\n\r\n",
+            "HTTP/1.1 200 OK\r\ncontent-length: 0\r\ncontent-type: text/plain\r\n\r\n",
+        );
+
+        accept(testclient.clone(), |_req, resp_wtr| async move {
+            let mut resp = HttpResponse::new(Body::empty());
+            resp.headers_mut().append(header::CONTENT_TYPE, tophat::mime::TEXT_PLAIN.to_string().parse().unwrap());
+            resp_wtr.send(resp).await
+        })
+        .await
+        .unwrap();
+
+        // One Date header should be stripped out by TestClient
+        testclient.assert();
+    });
+}
+
+#[test]
 fn test_decode_transfer_encoding_chunked() {
     smol::block_on(async {
         let testclient = TestClient::new(

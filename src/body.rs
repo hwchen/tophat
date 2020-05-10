@@ -1,6 +1,5 @@
 use futures_io::{AsyncRead, AsyncBufRead};
 use futures_util::io::AsyncReadExt;
-use mime::{self, Mime};
 use std::io;
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -13,7 +12,6 @@ pin_project_lite::pin_project! {
     pub struct Body {
         #[pin]
         pub(crate) reader: Box<dyn AsyncBufRead + Unpin + Send + Sync + 'static>,
-        pub(crate) mime: Mime,
         pub(crate) length: Option<usize>,
         trailer_sender: Option<piper::Sender<Result<Trailers>>>,
         trailer_receiver: piper::Receiver<Result<Trailers>>,
@@ -26,7 +24,6 @@ impl Body {
 
         Self {
             reader: Box::new(empty()),
-            mime: mime::APPLICATION_OCTET_STREAM,
             length: Some(0),
             trailer_sender: Some(sender),
             trailer_receiver: receiver,
@@ -43,7 +40,6 @@ impl Body {
 
         Self {
             reader: Box::new(reader),
-            mime: mime::APPLICATION_OCTET_STREAM,
             length: len,
             trailer_sender: Some(sender),
             trailer_receiver: receiver,
@@ -56,7 +52,6 @@ impl Body {
         Self {
             length: Some(bytes.len()),
             reader: Box::new(Cursor::new(bytes)),
-            mime: mime::APPLICATION_OCTET_STREAM,
             trailer_sender: Some(sender),
             trailer_receiver: receiver,
         }
@@ -121,7 +116,6 @@ impl From<String> for Body {
         Self {
             length: Some(s.len()),
             reader: Box::new(Cursor::new(s.into_bytes())),
-            mime: mime::TEXT_PLAIN,
             trailer_sender: Some(sender),
             trailer_receiver: receiver,
         }
@@ -135,7 +129,6 @@ impl<'a> From<&'a str> for Body {
         Self {
             length: Some(s.len()),
             reader: Box::new(Cursor::new(s.to_owned().into_bytes())),
-            mime: mime::TEXT_PLAIN,
             trailer_sender: Some(sender),
             trailer_receiver: receiver,
         }

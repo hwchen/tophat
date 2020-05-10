@@ -15,6 +15,8 @@ use futures_core::Future;
 use futures_io::{AsyncRead, AsyncWrite};
 use std::time::Duration;
 
+pub use mime;
+
 pub use crate::body::Body;
 use crate::decode::decode;
 pub use crate::error::{Error, Result};
