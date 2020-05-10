@@ -35,7 +35,6 @@ Upcoming features:
 - Router. Service abstraction?
 - Convenience functions for building Responses.
 - Json feature.
-- Server Sent Events.
 - Client.
 - Lots of examples.
 - static file serving? (have to investigate something like `blocking`).
