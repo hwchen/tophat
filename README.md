@@ -1,9 +1,11 @@
 # tophat
 [![CI](https://github.com/hwchen/tophat/workflows/ci/badge.svg)](https://github.com/hwchen/tophat/actions?query=workflow%3Aci)
 
-An async HTTP server library. Currently in pre-alpha.
+An async HTTP server library. Currently in alpha.
 
-This:
+The goal is to be low-level and small enough to work with different async runtimes and not dictate user architecture, while having enough convenience functions to still easily build a REST api.
+
+Also, this:
 ```rust
 async fn handler(req:Request, resp_wtr: ResponseWriter) -> Result<ResponseWritten, Error> {
     let done = resp_wtr.send(Response::empty())?;
@@ -27,7 +29,19 @@ async fn handler(req:Request) -> Result<Response, Error> {
 - #[deny(unsafe_code)]
 - Fast enough.
 
-The goal is to have completely correct handling of the HTTP protocol
+Correct handling of the HTTP protocol is a priority.
+
+Upcoming features:
+- Router. Service abstraction?
+- Convenience functions for building Responses.
+- Json feature.
+- Server Sent Events.
+- Client.
+- Lots of examples.
+- static file serving? (have to investigate something like `blocking`).
+
+Long term:
+- HTTP/2
 
 # Thanks
 Especially to [async-h1](https://github.com/http-rs/async-h1), whose eye for structure and design I appreciate, and whose code base tophat is built from.

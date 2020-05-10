@@ -1,6 +1,6 @@
 #![deny(unsafe_code)]
 
-//! # tophat
+//! # tophat server
 //!
 //! ## Constructing a Response:
 //! - a `tophat::Response` is just an alias for an `http::Response<Body>`, where `Body` is
