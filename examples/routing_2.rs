@@ -1,5 +1,4 @@
 #![allow(dead_code)]
-#![allow(type_alias_bounds)]
 
 use futures_util::io::{AsyncRead, AsyncWrite};
 use http::Response;
@@ -13,15 +12,14 @@ use tophat::server::{accept, Request, ResponseWriter, ResponseWritten, Result};
 
 type Params<'a> = Vec<(&'a str, &'a str)>;
 
-type Handler<W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static> = fn(Request, ResponseWriter<W>) -> Pin<Box<dyn Future<Output = Result<ResponseWritten>> + Send>>;
 
 fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     pretty_env_logger::init();
 
     //let mut tree = PathTree::<Box<dyn Endpoint<_>>>::new();
-    let mut tree = PathTree::<Handler<_>>::new();
-    tree.insert("/GET/:name", pin_hello_user);
-    tree.insert("/GET/rust", pin_hello_rust);
+    let tree = PathTree::<Box<dyn Endpoint<_>>>::new();
+    //tree.insert("/GET/:name", Box::new(hello_user));
+    //tree.insert("/GET/rust", Box::new(hello_rust));
     let tree = Arc::new(tree);
 
     let listener = Async::<TcpListener>::bind("127.0.0.1:9999")?;
@@ -38,7 +36,7 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 
                     let path = "/".to_owned() + req.method().as_str() + req.uri().path();
                     match router.find(&path) {
-                        Some((handler, _params)) => handler(req, resp_wtr).await,
+                        Some((handler, _params)) => handler.call(req, resp_wtr).await,
                         None => {
                             let resp = http::Response::builder()
                                 .status(http::StatusCode::NOT_FOUND)
@@ -74,12 +72,6 @@ async fn hello_user<W>(_req: Request, resp_wtr: ResponseWriter<W>) -> Result<Res
     resp_wtr.send(resp).await
 }
 
-fn pin_hello_user<W>(req: Request, resp_wtr: ResponseWriter<W>) -> Pin<Box<dyn Future<Output = Result<ResponseWritten>>+ Send>>
-    where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
-{
-    Box::pin(hello_user(req, resp_wtr))
-}
-
 //async fn hello_rust<'a, W>(_req: Request, resp_wtr: ResponseWriter<W>, _params: Params<'a>) -> Result<ResponseWritten>
 async fn hello_rust<W>(_req: Request, resp_wtr: ResponseWriter<W>) -> Result<ResponseWritten>
     where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
@@ -90,8 +82,29 @@ async fn hello_rust<W>(_req: Request, resp_wtr: ResponseWriter<W>) -> Result<Res
     resp_wtr.send(resp).await
 }
 
-fn pin_hello_rust<W>(req: Request, resp_wtr: ResponseWriter<W>) -> Pin<Box<dyn Future<Output = Result<ResponseWritten>>+ Send>>
+pub(crate) type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
+
+pub trait Endpoint<W>: Send + Sync + 'static
     where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
 {
-    Box::pin(hello_rust(req, resp_wtr))
+    /// Invoke the endpoint within the given context
+    fn call<'a>(&'a self, req: Request, resp_wtr: ResponseWriter<W>) -> BoxFuture<'a, Result<ResponseWritten>>;
+}
+
+pub(crate) type DynEndpoint<W> = dyn Endpoint<W>;
+
+impl<F: Send + Sync + 'static, Fut, Res, W> Endpoint<W> for F
+where
+    F: Fn(Request) -> Fut,
+    Fut: Future<Output = Result<Res>> + Send + 'static,
+    Res: Into<ResponseWritten>,
+    W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
+{
+    fn call<'a>(&'a self, req: Request, _resp: ResponseWriter<W>) -> BoxFuture<'a, Result<ResponseWritten>> {
+        let fut = (self)(req);
+        Box::pin(async move {
+            let res = fut.await?;
+            Ok(res.into())
+        })
+    }
 }
