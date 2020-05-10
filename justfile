@@ -11,7 +11,7 @@ basic:
     RUST_LOG=info cargo watch -x 'run --release --example basic'
 
 routing:
-    RUST_LOG=info cargo watch -x 'run --release --example routing_2'
+    RUST_LOG=info cargo watch -x 'run --release --example routing'
 
 clippy:
     cargo watch -x '+nightly clippy -- -D warnings -Z unstable-options'

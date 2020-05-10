@@ -18,6 +18,7 @@
 mod decode;
 mod encode;
 mod response;
+pub mod router;
 
 use futures_core::Future;
 use futures_io::{AsyncRead, AsyncWrite};
@@ -33,6 +34,7 @@ use crate::timeout::{timeout, TimeoutError};
 use self::decode::decode;
 use self::response::InnerResponse;
 pub use self::response::{ResponseWriter, ResponseWritten};
+pub use self::router::{Params, Router};
 
 /// Accept a new incoming Http/1.1 connection
 ///
