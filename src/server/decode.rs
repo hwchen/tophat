@@ -13,7 +13,8 @@ use thiserror::Error as ThisError;
 use crate::Request;
 use crate::body::Body;
 use crate::chunked::ChunkedDecoder;
-use crate::response::InnerResponse;
+
+use super::response::InnerResponse;
 
 const LF: u8 = b'\n';
 

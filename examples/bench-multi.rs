@@ -3,7 +3,7 @@ use http::Response;
 use smol::{Async, Task};
 use std::net::TcpListener;
 use piper::Arc;
-use tophat::accept;
+use tophat::server::accept;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     for _ in 0..num_cpus::get().max(1) {

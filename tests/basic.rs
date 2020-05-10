@@ -13,7 +13,7 @@ use http::{
     Version,
     Uri,
 };
-use tophat::{accept, Body};
+use tophat::{server::accept, Body};
 
 use test_client::TestClient;
 

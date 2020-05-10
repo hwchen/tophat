@@ -11,8 +11,9 @@ use httpdate::fmt_http_date;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-use crate::response::InnerResponse;
 use crate::chunked::ChunkedEncoder;
+
+use super::response::InnerResponse;
 
 pub(crate) struct Encoder {
     resp: InnerResponse,
@@ -160,7 +161,7 @@ impl Encoder {
     /// whose length is not known up front.
     fn encode_chunked_body(&mut self, cx: &mut Context<'_>, buf: &mut [u8]) -> Poll<std::io::Result<usize>> {
         let buf = &mut buf[self.bytes_read..];
-        match self.chunked.encode(&mut self.resp, cx, buf) {
+        match self.chunked.encode(&mut self.resp.body, cx, buf) {
             Poll::Ready(Ok(read)) => {
                 self.bytes_read += read;
                 if self.bytes_read == 0 {

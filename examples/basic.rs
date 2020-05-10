@@ -2,7 +2,7 @@ use http::{header, Response};
 use smol::{Async, Task};
 use std::net::TcpListener;
 use piper::Arc;
-use tophat::accept;
+use tophat::server::accept;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     pretty_env_logger::init();

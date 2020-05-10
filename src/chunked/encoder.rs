@@ -8,7 +8,7 @@ use std::pin::Pin;
 use futures_core::task::{Context, Poll};
 use futures_io::AsyncBufRead;
 
-use crate::response::InnerResponse;
+use crate::body::Body;
 
 const CR: u8 = b'\r';
 const LF: u8 = b'\n';
@@ -72,17 +72,17 @@ impl ChunkedEncoder {
     /// ```
     pub(crate) fn encode(
         &mut self,
-        res: &mut InnerResponse,
+        body: &mut Body,
         cx: &mut Context<'_>,
         buf: &mut [u8],
     ) -> Poll<io::Result<usize>> {
         self.bytes_written = 0;
         match self.state {
-            State::Start => self.init(res, cx, buf),
-            State::EncodeChunks => self.encode_chunks(res, cx, buf),
-            State::EndOfChunks => self.encode_chunks_eos(res, cx, buf),
-            State::ReceiveTrailers => self.encode_trailers(res, cx, buf),
-            State::EncodeTrailers => self.encode_trailers(res, cx, buf),
+            State::Start => self.init(body, cx, buf),
+            State::EncodeChunks => self.encode_chunks(body, cx, buf),
+            State::EndOfChunks => self.encode_chunks_eos(body, cx, buf),
+            State::ReceiveTrailers => self.encode_trailers(body, cx, buf),
+            State::EncodeTrailers => self.encode_trailers(body, cx, buf),
             State::EndOfStream => self.encode_eos(cx, buf),
             State::End => Poll::Ready(Ok(0)),
         }
@@ -110,24 +110,24 @@ impl ChunkedEncoder {
     /// Init encoding.
     fn init(
         &mut self,
-        res: &mut InnerResponse,
+        body: &mut Body,
         cx: &mut Context<'_>,
         buf: &mut [u8],
     ) -> Poll<io::Result<usize>> {
         self.set_state(State::EncodeChunks);
-        self.encode_chunks(res, cx, buf)
+        self.encode_chunks(body, cx, buf)
     }
 
     /// Stream out data using chunked encoding.
     fn encode_chunks(
         &mut self,
-        res: &mut InnerResponse,
+        mut body: &mut Body,
         cx: &mut Context<'_>,
         buf: &mut [u8],
     ) -> Poll<io::Result<usize>> {
         // Get bytes from the underlying stream. If the stream is not ready yet,
         // return the header bytes if we have any.
-        let src = match Pin::new(&mut res.body).poll_fill_buf(cx) {
+        let src = match Pin::new(&mut body).poll_fill_buf(cx) {
             Poll::Ready(Ok(n)) => n,
             Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
             Poll::Pending => match self.bytes_written {
@@ -140,7 +140,7 @@ impl ChunkedEncoder {
         // sending chunks and it's time to move on.
         if src.len() == 0 {
             self.set_state(State::EndOfChunks);
-            return self.encode_chunks_eos(res, cx, buf);
+            return self.encode_chunks_eos(body, cx, buf);
         }
 
         // Each chunk is prefixed with the length of the data in hex, then a
@@ -175,7 +175,7 @@ impl ChunkedEncoder {
         let lower = self.bytes_written;
         let upper = self.bytes_written + msg_len;
         buf[lower..upper].copy_from_slice(&src[0..msg_len]);
-        Pin::new(&mut res.body).consume(msg_len);
+        Pin::new(&mut body).consume(msg_len);
         self.bytes_written += msg_len;
 
         // Finalize the chunk with a closing CRLF.
@@ -191,7 +191,7 @@ impl ChunkedEncoder {
 
     fn encode_chunks_eos(
         &mut self,
-        res: &mut InnerResponse,
+        body: &mut Body,
         cx: &mut Context<'_>,
         buf: &mut [u8],
     ) -> Poll<io::Result<usize>> {
@@ -209,26 +209,26 @@ impl ChunkedEncoder {
         self.bytes_written += 1 + CRLF_LEN;
 
         self.set_state(State::ReceiveTrailers);
-        self.receive_trailers(res, cx, buf)
+        self.receive_trailers(body, cx, buf)
     }
 
     /// Receive trailers sent to the response, and store them in an internal
     /// buffer.
     fn receive_trailers(
         &mut self,
-        res: &mut InnerResponse,
+        body: &mut Body,
         cx: &mut Context<'_>,
         buf: &mut [u8],
     ) -> Poll<io::Result<usize>> {
         // TODO: actually wait for trailers to be received.
         self.set_state(State::EncodeTrailers);
-        self.encode_trailers(res, cx, buf)
+        self.encode_trailers(body, cx, buf)
     }
 
     /// Send trailers to the buffer.
     fn encode_trailers(
         &mut self,
-        _res: &mut InnerResponse,
+        _body: &mut Body,
         cx: &mut Context<'_>,
         buf: &mut [u8],
     ) -> Poll<io::Result<usize>> {
