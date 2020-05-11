@@ -299,7 +299,7 @@ fn test_set_content_type_mime() {
 
         accept(testclient.clone(), |_req, resp_wtr| async move {
             let mut resp = HttpResponse::new(Body::empty());
-            resp.headers_mut().append(header::CONTENT_TYPE, tophat::mime::TEXT_PLAIN.to_string().parse().unwrap());
+            resp.headers_mut().append(header::CONTENT_TYPE, "text/plain".parse().unwrap());
             resp_wtr.send(resp).await
         })
         .await

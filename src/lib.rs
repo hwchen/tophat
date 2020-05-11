@@ -18,4 +18,3 @@ pub use body::Body;
 pub use error::{Error, Result};
 pub use request::Request;
 pub use response::Response;
-pub use mime;

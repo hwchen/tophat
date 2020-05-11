@@ -6,8 +6,8 @@
 //! - a `tophat::Response` is just an alias for an `http::Response<Body>`, where `Body` is
 //! tophat-specific streaming body. There are convenience methods for constructing bodies easily
 //! from streams and buffers.
-//! - content-type headers must be set manually. tophat exposes the the `mime` lib for those who
-//! wish to use types for MIME.
+//! - content-type headers must be set manually. For those who want typed mimes, check out the
+//! `mime` crate.
 //! - body-type headers are ignored, because the encoder sets them depending on the type of body
 //! set:
 //!   - from streaming reader with length: fixed body
@@ -24,8 +24,6 @@ pub mod router;
 use futures_core::Future;
 use futures_io::{AsyncRead, AsyncWrite};
 use std::time::Duration;
-
-pub use mime;
 
 pub use crate::body::Body;
 pub use crate::error::{Error, Result};
