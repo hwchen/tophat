@@ -14,6 +14,9 @@ mod timeout;
 pub mod trailers;
 mod util;
 
+/// Re-export http crate for convenience
+pub use http;
+
 pub use body::Body;
 pub use error::{Error, Result};
 pub use request::Request;
