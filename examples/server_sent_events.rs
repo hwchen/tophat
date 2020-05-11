@@ -1,13 +1,11 @@
 use futures_core::Stream;
-use futures_util::TryStreamExt;
-use http::Response;
 use smol::{Async, Task};
 use std::net::TcpListener;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::time::Duration;
 use piper::{Arc, Mutex};
-use tophat::{server::accept, Body};
+use tophat::server::{accept, reply};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     pretty_env_logger::init();
@@ -38,15 +36,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let serve = accept(stream, |_req, resp_wtr| {
                     async {
                         let client = ping_machine.lock().add_client();
-                        // convert stream to asyncread
-                        let client = client.into_async_read();
-
-                        let body = Body::from_reader(client, None);
-                        let mut resp = Response::new(body);
-                        resp.headers_mut().insert(
-                            "content-type",
-                            "text/event-stream".parse().unwrap(),
-                        );
+                        let resp = reply::sse(client);
 
                         resp_wtr.send(resp).await
                     }
