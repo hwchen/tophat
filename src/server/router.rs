@@ -81,7 +81,7 @@ pub struct RouterBuilder<W>
 impl<W> RouterBuilder<W>
     where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
 {
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {
             tree: PathTree::new(),
             data: None,
