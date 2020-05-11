@@ -38,7 +38,7 @@ pub struct Router<W>
 impl<W> Router<W>
     where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
 {
-    pub fn new() -> RouterBuilder<W> {
+    pub fn build() -> RouterBuilder<W> {
         RouterBuilder::new()
     }
 
@@ -58,8 +58,7 @@ impl<W> Router<W>
                 }
                 extensions_mut.insert(params);
 
-                let res = endpoint.call(req, resp_wtr).await;
-                res
+                endpoint.call(req, resp_wtr).await
             },
             None => {
                 let resp = http::Response::builder()
@@ -109,7 +108,7 @@ impl<W> RouterBuilder<W>
         self
     }
 
-    pub fn build(self) -> Router<W> {
+    pub fn finish(self) -> Router<W> {
         Router {
             tree: Arc::new(self.tree),
             data: Arc::new(self.data.map(Data::new).map(DataMap)),

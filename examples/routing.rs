@@ -8,11 +8,11 @@ use tophat::server::{accept, Request, ResponseWriter, ResponseWritten, Result, R
 fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     pretty_env_logger::init();
 
-    let router = Router::new()
+    let router = Router::build()
         .data("Data from datastore")
         .at(Method::GET, "/:name", hello_user)
         .at(Method::GET, "/", blank)
-        .build();
+        .finish();
 
     let listener = Async::<TcpListener>::bind("127.0.0.1:9999")?;
 
