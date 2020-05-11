@@ -26,10 +26,11 @@ use crate::server::{Request, ResponseWriter, ResponseWritten, Result};
 
 pub type Params = Vec<(String, String)>;
 
+#[derive(Clone)]
 pub struct Router<W>
     where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
 {
-    tree: PathTree<Box<dyn Endpoint<W>>>,
+    tree: Arc<PathTree<Box<dyn Endpoint<W>>>>,
 }
 
 impl<W> Router<W>
@@ -81,10 +82,10 @@ impl<W> RouterBuilder<W>
         self
     }
 
-    pub fn build(self) -> Arc<Router<W>> {
-        Arc::new(Router {
-            tree: self.tree,
-        })
+    pub fn build(self) -> Router<W> {
+        Router {
+            tree: Arc::new(self.tree),
+        }
     }
 }
 

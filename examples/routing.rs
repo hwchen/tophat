@@ -10,7 +10,7 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 
     let mut router = Router::new();
     router.at(Method::GET, "/:name", hello_user);
-    router.at(Method::GET, "/", hello_rust);
+    router.at(Method::GET, "/", blank);
     let router = router.build();
 
     let listener = Async::<TcpListener>::bind("127.0.0.1:9999")?;
@@ -52,13 +52,9 @@ async fn hello_user< W>(_req: Request, resp_wtr: ResponseWriter<W>, params: Para
     resp_wtr.send(resp).await
 }
 
-async fn hello_rust<W>(_req: Request, resp_wtr: ResponseWriter<W>, _params: Params) -> Result<ResponseWritten>
+async fn blank<W>(_req: Request, resp_wtr: ResponseWriter<W>, _params: Params) -> Result<ResponseWritten>
     where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
 {
-    smol::Timer::after(std::time::Duration::from_secs(5)).await;
-
-    //let resp_body = format!("Hello, rust!");
-    //let resp = Response::new(resp_body.into());
     let resp = Response::new(tophat::Body::empty());
 
 
