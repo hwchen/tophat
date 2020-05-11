@@ -51,3 +51,48 @@ pub fn sse<S: 'static>(stream: S) -> Response
 
     resp
 }
+
+/// Create a response with:
+/// - specified code
+/// - empty body
+/// - no headers
+///
+/// Returns a `Result` because the code may be invalid.
+///
+pub fn code(status_code: u16)-> std::result::Result<Response, http::status::InvalidStatusCode> {
+    let mut resp = Response::new(Body::empty());
+    *resp.status_mut() = http::StatusCode::from_u16(status_code)?;
+
+    Ok(resp)
+}
+
+/// Create a response with:
+/// - specified code
+/// - no headers
+/// - Body
+///
+/// The Body can be from AsyncRead or a buffer, the user must manually create the Body.
+/// If Server Sent Events are desired, and a stream is converted into AsyncRead and fed
+/// into the Body, no content-type header will be set. (Using the `sse` function would set the
+/// content-type header).
+///
+/// Returns a `Result` because the code may be invalid.
+///
+pub fn code_with_body(status_code: u16, body: Body)-> std::result::Result<Response, http::status::InvalidStatusCode> {
+    let mut resp = Response::new(body);
+    *resp.status_mut() = http::StatusCode::from_u16(status_code)?;
+
+    Ok(resp)
+}
+
+/// Create a response with:
+/// - 200 OK
+/// - Content-type
+/// - Body from String
+///
+pub fn text(s: String)-> Response {
+    let mut resp = Response::new(s.into());
+    resp.headers_mut().append(http::header::CONTENT_TYPE, "text/plain".parse().unwrap());
+
+    resp
+}
