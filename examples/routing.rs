@@ -3,12 +3,13 @@ use http::{Method, Response};
 use smol::{Async, Task};
 use std::net::TcpListener;
 use piper::Arc;
-use tophat::server::{accept, Params, Request, ResponseWriter, ResponseWritten, Result, Router};
+use tophat::server::{accept, Request, ResponseWriter, ResponseWritten, Result, Router, router::RouterRequestExt};
 
 fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     pretty_env_logger::init();
 
     let router = Router::new()
+        .data("Data from datastore")
         .at(Method::GET, "/:name", hello_user)
         .at(Method::GET, "/", blank)
         .build();
@@ -38,21 +39,31 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     })
 }
 
-async fn hello_user< W>(_req: Request, resp_wtr: ResponseWriter<W>, params: Params) -> Result<ResponseWritten>
+async fn hello_user< W>(req: Request, resp_wtr: ResponseWriter<W>) -> Result<ResponseWritten>
     where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
 {
-    smol::Timer::after(std::time::Duration::from_secs(5)).await;
+    //smol::Timer::after(std::time::Duration::from_secs(5)).await;
 
     let mut resp_body = format!("Hello, ");
-    for (k, v) in params {
-        resp_body.push_str(&format!("{} = {}", k, v));
+
+    // add params to body string
+    if let Some(params) = req.params() {
+        for (k, v) in params {
+            resp_body.push_str(&format!("{} = {}", k, v));
+        }
     }
+
+    // add data to body string
+    if let Some(data_string) = req.data::<&str>() {
+        resp_body.push_str(&format!(" and {}", *data_string));
+    }
+
     let resp = Response::new(resp_body.into());
 
     resp_wtr.send(resp).await
 }
 
-async fn blank<W>(_req: Request, resp_wtr: ResponseWriter<W>, _params: Params) -> Result<ResponseWritten>
+async fn blank<W>(_req: Request, resp_wtr: ResponseWriter<W>) -> Result<ResponseWritten>
     where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
 {
     let resp = Response::new(tophat::Body::empty());

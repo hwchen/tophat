@@ -41,13 +41,23 @@ impl<W> Router<W>
         RouterBuilder::new()
     }
 
-    pub async fn route(&self, req: Request, resp_wtr: ResponseWriter<W>) -> Result<ResponseWritten> {
+    pub async fn route(&self, mut req: Request, resp_wtr: ResponseWriter<W>) -> Result<ResponseWritten> {
         let path = "/".to_owned() + req.method().as_str() + req.uri().path();
 
         match self.tree.find(&path) {
             Some((endpoint, params)) => {
                 let params: Vec<(String, String)> = params.into_iter().map(|(a,b)| (a.to_owned(), b.to_owned())).collect();
-                let res = endpoint.call(req, resp_wtr, params).await;
+
+                // a place to store data and params
+                // extensions is a type map, and then
+                // data is also a type map.
+                let extensions_mut = req.extensions_mut();
+                if let Some(ref data) = *self.data {
+                    extensions_mut.insert(data.clone());
+                }
+                extensions_mut.insert(params);
+
+                let res = endpoint.call(req, resp_wtr).await;
                 res
             },
             None => {
@@ -110,18 +120,18 @@ pub trait Endpoint<W>: Send + Sync + 'static
     where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
 {
     /// Invoke the endpoint within the given context
-    fn call<'a>(&'a self, req: Request, resp_wtr: ResponseWriter<W>, params: Params) -> BoxFuture<'a, Result<ResponseWritten>>;
+    fn call<'a>(&'a self, req: Request, resp_wtr: ResponseWriter<W>) -> BoxFuture<'a, Result<ResponseWritten>>;
 }
 
 impl<F: Send + Sync + 'static, Fut, Res, W> Endpoint<W> for F
 where
-    F: Fn(Request, ResponseWriter<W>, Params) -> Fut,
+    F: Fn(Request, ResponseWriter<W>) -> Fut,
     Fut: Future<Output = Result<Res>> + Send + 'static,
     Res: Into<ResponseWritten>,
     W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
 {
-    fn call<'a>(&'a self, req: Request, resp: ResponseWriter<W>, params: Params) -> BoxFuture<'a, Result<ResponseWritten>> {
-        let fut = (self)(req, resp, params);
+    fn call<'a>(&'a self, req: Request, resp: ResponseWriter<W>) -> BoxFuture<'a, Result<ResponseWritten>> {
+        let fut = (self)(req, resp);
         Box::pin(async move {
             let res = fut.await?;
             Ok(res.into())
