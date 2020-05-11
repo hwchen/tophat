@@ -24,7 +24,8 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 
             let task = Task::spawn(async move {
                 let serve = accept(stream, |req, resp_wtr| async {
-                    router.route(req, resp_wtr).await
+                    let res = router.route(req, resp_wtr).await;
+                    res
                 }).await;
 
                 if let Err(err) = serve {
@@ -40,6 +41,8 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 async fn hello_user< W>(_req: Request, resp_wtr: ResponseWriter<W>, params: Params) -> Result<ResponseWritten>
     where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
 {
+    smol::Timer::after(std::time::Duration::from_secs(5)).await;
+
     let mut resp_body = format!("Hello, ");
     for (k, v) in params {
         resp_body.push_str(&format!("{} = {}", k, v));
@@ -54,8 +57,10 @@ async fn hello_rust<W>(_req: Request, resp_wtr: ResponseWriter<W>, _params: Para
 {
     smol::Timer::after(std::time::Duration::from_secs(5)).await;
 
-    let resp_body = format!("Hello, rust!");
-    let resp = Response::new(resp_body.into());
+    //let resp_body = format!("Hello, rust!");
+    //let resp = Response::new(resp_body.into());
+    let resp = Response::new(tophat::Body::empty());
+
 
     resp_wtr.send(resp).await
 }

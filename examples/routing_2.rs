@@ -19,7 +19,7 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     tree.insert("/GET/", Box::new(hello_rust));
     let tree = Arc::new(tree);
 
-    let listener = Async::<TcpListener>::bind("127.0.0.1:9999")?;
+    let listener = Async::<TcpListener>::bind("127.0.0.1:9998")?;
 
     smol::run(async {
         loop {

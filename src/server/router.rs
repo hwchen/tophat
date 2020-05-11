@@ -1,8 +1,20 @@
 // Thanks to tide, looking at Endpoint helped me understand how to coerce Fn to be storable.
+//
+// I'm a little nervous, because this router is so much more direct than others I've seen. I think
+// it's because I'm not integrating with a Service, and I'm not making middleware.
+//
+// My main concern was whether there would be such as thing as contention for the function.
+// - looks like there's no issue when there's a sleep timer in the fn, the number of connections
+// waiting on the sleep still scales with the number of total connections made.
+// - Oh, I should test with one autocannon set to a sleep endpoint and another to not.
+// - I'm able to run autocannon on `hello_<user>` and simultaneously curl with another user, and it
+// goes through just fine. So there's no contention, it's just the sleep.
+// - So basically, I think that my code should be fine, the fn's code is just a reference, and
+// then runtime-code gets filled in (the appropriate params and stuff).
 
-//! Basic router
+
+//! Very Basic router
 //!
-
 use futures_util::io::{AsyncRead, AsyncWrite};
 use http::Method;
 use std::future::Future;
@@ -14,11 +26,10 @@ use crate::server::{Request, ResponseWriter, ResponseWritten, Result};
 
 pub type Params = Vec<(String, String)>;
 
-#[derive(Clone)]
 pub struct Router<W>
     where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
 {
-    tree: Arc<PathTree<Box<dyn Endpoint<W>>>>,
+    tree: PathTree<Box<dyn Endpoint<W>>>,
 }
 
 impl<W> Router<W>
@@ -32,9 +43,10 @@ impl<W> Router<W>
         let path = "/".to_owned() + req.method().as_str() + req.uri().path();
 
         match self.tree.find(&path) {
-            Some((handler, params)) => {
-                let params = params.into_iter().map(|(a,b)| (a.to_owned(), b.to_owned())).collect();
-                handler.call(req, resp_wtr, params).await
+            Some((endpoint, params)) => {
+                let params: Vec<(String, String)> = params.into_iter().map(|(a,b)| (a.to_owned(), b.to_owned())).collect();
+                let res = endpoint.call(req, resp_wtr, params).await;
+                res
             },
             None => {
                 let resp = http::Response::builder()
@@ -69,10 +81,10 @@ impl<W> RouterBuilder<W>
         self
     }
 
-    pub fn build(self) -> Router<W> {
-        Router {
-            tree: Arc::new(self.tree),
-        }
+    pub fn build(self) -> Arc<Router<W>> {
+        Arc::new(Router {
+            tree: self.tree,
+        })
     }
 }
 
