@@ -1,4 +1,5 @@
-// Thanks to tide, looking at Endpoint helped me understand how to coerce Fn to be storable.
+// Thanks to tide, looking at Endpoint helped me understand how to coerce Fn to be storable. And to
+// reset-router, to understand how to use extensions and a trait to allow access from a Request.
 //
 // I'm a little nervous, because this router is so much more direct than others I've seen. I think
 // it's because I'm not integrating with a Service, and I'm not making middleware.
