@@ -31,6 +31,7 @@ pub struct Router<W>
     where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
 {
     tree: Arc<PathTree<Box<dyn Endpoint<W>>>>,
+    data: Arc<Option<DataMap>>,
 }
 
 impl<W> Router<W>
@@ -64,6 +65,7 @@ pub struct RouterBuilder<W>
     where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
 {
     tree: PathTree<Box<dyn Endpoint<W>>>,
+    data: Option<type_map::concurrent::TypeMap>,
 }
 
 impl<W> RouterBuilder<W>
@@ -72,19 +74,34 @@ impl<W> RouterBuilder<W>
     pub fn new() -> Self {
         Self {
             tree: PathTree::new(),
+            data: None,
         }
     }
 
-    pub fn at(&mut self, method: Method, path: &str, endpoint: impl Endpoint<W>) -> &mut Self {
+    pub fn at(self, method: Method, path: &str, endpoint: impl Endpoint<W>) -> Self {
+        let mut this = self;
+
         let path = "/".to_owned() + method.as_str() + path;
 
-        self.tree.insert(&path, Box::new(endpoint));
+        this.tree.insert(&path, Box::new(endpoint));
+        this
+    }
+
+    pub fn data<T: Send + Sync + 'static>(self, data: T) -> Self {
+        self.wrapped_data(Data::new(data))
+    }
+
+    pub fn wrapped_data<T: Send + Sync + 'static>(mut self, data: T) -> Self {
+        let mut map = self.data.take().unwrap_or_else(type_map::concurrent::TypeMap::new);
+        map.insert(data);
+        self.data = Some(map);
         self
     }
 
     pub fn build(self) -> Router<W> {
         Router {
             tree: Arc::new(self.tree),
+            data: Arc::new(self.data.map(Data::new).map(DataMap)),
         }
     }
 }
@@ -109,6 +126,52 @@ where
             let res = fut.await?;
             Ok(res.into())
         })
+    }
+}
+
+// Router extras: Data and params access
+
+pub struct Data<T>(Arc<T>);
+
+impl<T> Data<T> {
+    pub fn new(t: T) -> Self {
+        Data(Arc::new(t))
+    }
+
+    pub fn from_arc(arc: Arc<T>) -> Self {
+        Data(arc)
+    }
+}
+
+impl<T> std::ops::Deref for Data<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &*self.0
+    }
+}
+
+impl<T> Clone for Data<T> {
+    fn clone(&self) -> Self {
+        Data(Arc::clone(&self.0))
+    }
+}
+
+#[derive(Clone)]
+struct DataMap(Data<type_map::concurrent::TypeMap>);
+
+pub trait RouterRequestExt {
+    fn data<T: Send + Sync + 'static>(&self) -> Option<Data<T>>;
+    fn params(&self) -> Option<&Params>;
+}
+
+impl RouterRequestExt for crate::Request {
+    fn data<T: Send + Sync + 'static>(&self) -> Option<Data<T>> {
+        self.extensions().get::<DataMap>().and_then(|x| x.0.get::<Data<T>>()).cloned()
+    }
+
+    fn params(&self) -> Option<&Params> {
+        self.extensions().get::<Params>()
     }
 }
 

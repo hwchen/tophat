@@ -8,10 +8,10 @@ use tophat::server::{accept, Params, Request, ResponseWriter, ResponseWritten, R
 fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     pretty_env_logger::init();
 
-    let mut router = Router::new();
-    router.at(Method::GET, "/:name", hello_user);
-    router.at(Method::GET, "/", blank);
-    let router = router.build();
+    let router = Router::new()
+        .at(Method::GET, "/:name", hello_user)
+        .at(Method::GET, "/", blank)
+        .build();
 
     let listener = Async::<TcpListener>::bind("127.0.0.1:9999")?;
 
