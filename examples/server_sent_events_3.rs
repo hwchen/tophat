@@ -17,10 +17,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let (stream, _) = listener.accept().await?;
             let stream = Arc::new(stream);
 
+            // Unlike server_sent_events_2, this sender is created outside the `accept` scope,
+            // so it doesn't get dropped at the end of `accept` and keeps the sse alive.
+            let (tx, rx) = piper::chan(100);
+
+            // This is just to show that you can send messages even after the task is spawned (at
+            // the end)
+            let tx_1 = tx.clone();
+
             let task = Task::spawn(async move {
                 let serve = accept(stream, |_req, resp_wtr| async {
-                    let (tx, rx) = piper::chan(100);
-                    let client = Client(rx);
+                    let client = Client(rx.clone());
                     let resp = reply::sse(client);
 
                     smol::Task::spawn(async {
@@ -40,9 +47,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     tx.send("data: ipsum\n\n".to_owned()).await;
 
                     Ok(ResponseWritten)
-                    // tx gets dropped, so that resp_wtr stops sending, and
-                    // println gets hit. If the task got dropped, println shouldn't
-                    // get hit.
                 }).await;
 
                 if let Err(err) = serve {
@@ -52,6 +56,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             });
 
             task.detach();
+
+            tx_1.clone().send("You've reached the end".to_owned()).await;
         }
     })
 }
@@ -72,4 +78,5 @@ impl Stream for Client {
         }
     }
 }
+
 
