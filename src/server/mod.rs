@@ -20,7 +20,7 @@ mod encode;
 pub mod reply;
 mod response;
 pub mod router;
-// TODO put behind feature flag
+#[cfg(feature = "identity")]
 pub mod identity;
 
 use futures_core::Future;
