@@ -2,6 +2,8 @@
 //!
 //! Not middleware :)
 //!
+//! Only manually verified/tested, use at own risk.
+//!
 //! The service is kept in the global state (Data in the router)
 //!
 //! Cookies only
