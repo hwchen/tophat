@@ -173,6 +173,7 @@ struct DataMap(Data<type_map::concurrent::TypeMap>);
 pub trait RouterRequestExt {
     fn data<T: Send + Sync + 'static>(&self) -> Option<Data<T>>;
     fn params(&self) -> Option<&Params>;
+    fn get_param(&self, key: &str) -> Option<&str>;
 }
 
 impl RouterRequestExt for crate::Request {
@@ -182,6 +183,18 @@ impl RouterRequestExt for crate::Request {
 
     fn params(&self) -> Option<&Params> {
         self.extensions().get::<Params>()
+    }
+
+    fn get_param(&self, key: &str) -> Option<&str> {
+        if let Some(params) = self.extensions().get::<Params>() {
+            for (k, v) in params {
+                // for right now, just returns first. Is this ok?
+                if key == k {
+                    return Some(v);
+                }
+            }
+        }
+        None
     }
 }
 

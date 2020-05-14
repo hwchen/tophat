@@ -19,6 +19,7 @@ use cookie::Cookie;
 use http::header;
 use jsonwebtoken::{encode, decode, Header, Validation, EncodingKey, DecodingKey};
 use serde::{Serialize, Deserialize};
+use std::convert::TryInto;
 use std::time::Duration;
 use thiserror::Error as ThisError;
 
@@ -37,10 +38,21 @@ pub struct Identity {
     /// Cookie name (Currently only cookies supported, no Auth header).
     /// Default "jwt"
     cookie_name: String,
+    /// Cookie path
+    /// Default "/"
+    /// TODO offer more granular path setting?
+    cookie_path: String,
 }
 
 impl Identity {
-    pub fn authorized_user(&self, req: Request) -> Option<String> {
+    /// Create a new instance.
+    ///
+    /// The `server_key` is used for signing and validating the jwt token.
+    pub fn new(server_key: &str) -> IdentityBuilder {
+        IdentityBuilder::new(server_key)
+    }
+
+    pub fn authorized_user(&self, req: &Request) -> Option<String> {
         // Get Cookie and token
         let jwtstr = get_cookie(&req, &self.cookie_name);
 
@@ -52,6 +64,7 @@ impl Identity {
                 &Validation::default()
             ).ok()?;
 
+            //println!("{:?}", token);
             Some(token.claims.sub)
         } else {
             None
@@ -63,9 +76,15 @@ impl Identity {
         //
         // This should never fail
         let token = self.make_token(Some(user), None).unwrap();
+        let cookie = Cookie::build(&self.cookie_name, token)
+            .path(&self.cookie_path)
+            .max_age(self.expiration_time.try_into().unwrap()) // this uses time crate :(
+            .http_only(true)
+            // .secure(true) make this an option
+            .finish();
         resp.headers_mut().append(
             header::SET_COOKIE,
-            token.parse().unwrap(),
+            cookie.to_string().parse().unwrap(),
         );
     }
 
@@ -74,9 +93,15 @@ impl Identity {
         //
         // This should never fail
         let token = self.make_token(None, Some(0)).unwrap();
+        let cookie = Cookie::build(&self.cookie_name, token)
+            .path(&self.cookie_path)
+            .max_age(time::Duration::seconds(0)) // this uses time crate :(
+            .http_only(true)
+            // .secure(true) make this an option
+            .finish();
         resp.headers_mut().append(
             header::SET_COOKIE,
-            token.parse().unwrap(),
+            cookie.to_string().parse().unwrap(),
         );
     }
 
@@ -86,7 +111,7 @@ impl Identity {
         expiration: Option<u64>,
     ) -> Result<String, IdentityFail> {
         let claims = Claims {
-            exp: current_numeric_date() + expiration.unwrap_or_else(|| self.expiration_time.as_secs()),
+            exp: expiration.unwrap_or_else(|| self.expiration_time.as_secs() + current_numeric_date()),
             iss: self.issuer.as_ref().cloned().unwrap_or_else(||"".to_owned()),
             sub: user.map(|s| s.to_owned()).unwrap_or_else(||"".to_owned()),
         };
@@ -104,6 +129,7 @@ pub struct IdentityBuilder {
     issuer: Option<String>,
     expiration_time: Duration,
     cookie_name: Option<String>, // default "jwt"
+    cookie_path: Option<String>, // default "/"
 }
 
 impl IdentityBuilder {
@@ -116,6 +142,7 @@ impl IdentityBuilder {
             issuer: None,
             expiration_time: Duration::from_secs(60 * 60 * 24),
             cookie_name: None,
+            cookie_path: None,
         }
     }
 
@@ -124,6 +151,13 @@ impl IdentityBuilder {
     /// The default is to not set an issuer.
     pub fn cookie_name(mut self, name: &str) -> Self {
         self.cookie_name = Some(name.to_owned());
+        self
+    }
+    /// Set cookie path
+    ///
+    /// The default is "/".
+    pub fn cookie_path(mut self, path: &str) -> Self {
+        self.cookie_path = Some(path.to_owned());
         self
     }
 
@@ -149,6 +183,7 @@ impl IdentityBuilder {
             issuer: self.issuer,
             expiration_time: self.expiration_time,
             cookie_name: self.cookie_name.unwrap_or_else(|| "jwt".to_owned()),
+            cookie_path: self.cookie_path.unwrap_or_else(|| "/".to_owned()),
         }
     }
 }

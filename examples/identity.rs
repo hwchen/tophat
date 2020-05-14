@@ -1,17 +1,34 @@
 use futures_util::io::{AsyncRead, AsyncWrite};
-use http::{Method, Response};
+use http::Method;
 use smol::{Async, Task};
 use std::net::TcpListener;
+use std::time::Duration;
 use piper::Arc;
-use tophat::server::{accept, Request, ResponseWriter, ResponseWritten, Result, Router, router::RouterRequestExt};
+use tophat::server::{
+    accept,
+    identity::Identity,
+    reply,
+    router::{Router, RouterRequestExt},
+    Request,
+    ResponseWriter,
+    ResponseWritten,
+    Result,
+};
 
 fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     pretty_env_logger::init();
 
+    let identity = Identity::new("secret_server_key")
+        .cookie_name("jwt")
+        .issuer("tophat")
+        .expiration_time(Duration::from_secs(30))
+        .finish();
+
     let router = Router::build()
-        .data("Data from datastore")
-        .at(Method::GET, "/:name", hello_user)
-        .at(Method::GET, "/", blank)
+        .data(identity)
+        .at(Method::GET, "/login/:user", login_user)
+        .at(Method::GET, "/logout", logout_user)
+        .at(Method::GET, "/", hello_user)
         .finish();
 
     let listener = Async::<TcpListener>::bind("127.0.0.1:9999")?;
@@ -39,35 +56,56 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     })
 }
 
-async fn hello_user< W>(req: Request, resp_wtr: ResponseWriter<W>) -> Result<ResponseWritten>
+async fn login_user<W>(req: Request, resp_wtr: ResponseWriter<W>) -> Result<ResponseWritten>
     where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
 {
-    //smol::Timer::after(std::time::Duration::from_secs(5)).await;
+    let identity = req.data::<Identity>().unwrap();
+    let user = req.get_param("user").unwrap();
 
-    let mut resp_body = format!("Hello, ");
+    // Here, we'll just assume that user is valid. This will usually be a call to the db to check
+    // against hashed password.
 
-    // add params to body string
-    if let Some(params) = req.params() {
-        for (k, v) in params {
-            resp_body.push_str(&format!("{} = {}", k, v));
-        }
-    }
+    // Since user is valid, we'll set a cookie with the jwt token
+    let mut resp = reply::code(200).unwrap();
+    identity.set_auth_token(user, &mut resp);
 
-    // add data to body string
-    if let Some(data_string) = req.data::<&str>() {
-        resp_body.push_str(&format!(" and {}", *data_string));
-    }
-
-    let resp = Response::new(resp_body.into());
+    println!("Login req headers{:?}", req.headers());
+    println!("Login res headers{:?}", resp.headers());
 
     resp_wtr.send(resp).await
 }
 
-async fn blank<W>(_req: Request, resp_wtr: ResponseWriter<W>) -> Result<ResponseWritten>
+async fn logout_user<W>(req: Request, resp_wtr: ResponseWriter<W>) -> Result<ResponseWritten>
     where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
 {
-    let resp = Response::new(tophat::Body::empty());
+    // Since we're using jwt tokens, we don't need to do a check on some session store to remove
+    // the session; just send the "forget" cookie.
 
+    let identity = req.data::<Identity>().unwrap();
+
+    let mut resp = reply::code(200).unwrap();
+    identity.forget(&mut resp);
+
+    println!("Logout req headers{:?}", req.headers());
+    println!("Logout res headers{:?}", resp.headers());
+
+    resp_wtr.send(resp).await
+}
+
+// Says hello to user based on user login name
+async fn hello_user<W>(req: Request, resp_wtr: ResponseWriter<W>) -> Result<ResponseWritten>
+    where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
+{
+    let identity = req.data::<Identity>().unwrap();
+
+    println!("Hello req headers{:?}", req.headers());
+
+    let user = match identity.authorized_user(&req) {
+        Some(u) => u,
+        None => return resp_wtr.send(reply::code(400).unwrap()).await,
+    };
+
+    let resp = reply::text(format!("Hello {}", user));
 
     resp_wtr.send(resp).await
 }
