@@ -20,6 +20,7 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 
     let identity = Identity::new("secret_server_key")
         .cookie_name("jwt")
+        .cookie_secure(false) // necessary because example not https
         .issuer("tophat")
         .expiration_time(Duration::from_secs(30))
         .finish();

@@ -2,13 +2,11 @@
 //!
 //! Not middleware :)
 //!
-//! Only manually verified/tested, use at own risk.
-//!
 //! The service is kept in the global state (Data in the router)
 //!
-//! Cookies only
+//! Only manually verified/tested, use at own risk.
 //!
-//! It uses jwt tokens
+//! Cookies only, using jwt tokens. No custom claims.
 //!
 //! It's a bit manual, but you'll have to:
 //!
@@ -44,6 +42,12 @@ pub struct Identity {
     /// Default "/"
     /// TODO offer more granular path setting?
     cookie_path: String,
+    /// Cookie secure
+    /// Default true
+    cookie_secure: bool,
+    /// Cookie Http Only
+    /// Default true
+    cookie_http_only: bool,
 }
 
 impl Identity {
@@ -81,8 +85,8 @@ impl Identity {
         let cookie = Cookie::build(&self.cookie_name, token)
             .path(&self.cookie_path)
             .max_age(self.expiration_time.try_into().unwrap()) // this uses time crate :(
-            .http_only(true)
-            // .secure(true) make this an option
+            .http_only(self.cookie_http_only)
+            .secure(self.cookie_secure)
             .finish();
         resp.headers_mut().append(
             header::SET_COOKIE,
@@ -98,8 +102,8 @@ impl Identity {
         let cookie = Cookie::build(&self.cookie_name, token)
             .path(&self.cookie_path)
             .max_age(time::Duration::seconds(0)) // this uses time crate :(
-            .http_only(true)
-            // .secure(true) make this an option
+            .http_only(self.cookie_http_only)
+            .secure(self.cookie_secure)
             .finish();
         resp.headers_mut().append(
             header::SET_COOKIE,
@@ -132,6 +136,8 @@ pub struct IdentityBuilder {
     expiration_time: Duration,
     cookie_name: Option<String>, // default "jwt"
     cookie_path: Option<String>, // default "/"
+    cookie_secure: bool, // default true
+    cookie_http_only: bool, // default true
 }
 
 impl IdentityBuilder {
@@ -145,6 +151,8 @@ impl IdentityBuilder {
             expiration_time: Duration::from_secs(60 * 60 * 24),
             cookie_name: None,
             cookie_path: None,
+            cookie_secure: true,
+            cookie_http_only: true,
         }
     }
 
@@ -160,6 +168,22 @@ impl IdentityBuilder {
     /// The default is "/".
     pub fn cookie_path(mut self, path: &str) -> Self {
         self.cookie_path = Some(path.to_owned());
+        self
+    }
+
+    /// Set cookie Secure (https only)
+    ///
+    /// The default is true.
+    pub fn cookie_secure(mut self, secure: bool) -> Self {
+        self.cookie_secure = secure;
+        self
+    }
+
+    /// Set cookie http only
+    ///
+    /// The default is true.
+    pub fn cookie_http_only(mut self, http_only: bool) -> Self {
+        self.cookie_http_only = http_only;
         self
     }
 
@@ -186,6 +210,8 @@ impl IdentityBuilder {
             expiration_time: self.expiration_time,
             cookie_name: self.cookie_name.unwrap_or_else(|| "jwt".to_owned()),
             cookie_path: self.cookie_path.unwrap_or_else(|| "/".to_owned()),
+            cookie_secure: self.cookie_secure,
+            cookie_http_only: self.cookie_http_only,
         }
     }
 }
