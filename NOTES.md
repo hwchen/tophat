@@ -55,3 +55,5 @@ async-h1 formats with a scheme and authority onto path, I think this is incorrec
 Designed using language constructs to build your app, instead of creating another layer of abstraction. So using streams and asyncread and write instead of service architecture when possible. The language already gives you tools which are very powerful and composable, so defer to those when possible.
 
 And instead of services for backend (like timeout and compression) just use async io traits and streams. Just need to provide hooks for them.
+
+Also, not trying to make easy things appear easy, but making hard things manageable.
