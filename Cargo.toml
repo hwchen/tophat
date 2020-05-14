@@ -29,6 +29,11 @@ piper = "0.1.1"
 thiserror = "1.0.16"
 type-map = "0.3.0"
 
+# for identity; serde is pretty heavy
+jsonwebtoken = "7.1.0"
+serde = { version = "1.0.110", features = ["derive"] }
+cookie = "0.13.3"
+
 [dev-dependencies]
 num_cpus = "1.13.0"
 piper = "0.1.1"
