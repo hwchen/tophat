@@ -7,7 +7,6 @@ use piper::Arc;
 use tophat::server::{
     accept,
     identity::Identity,
-    reply,
     router::{Router, RouterRequestExt},
     Request,
     ResponseWriter,
@@ -67,13 +66,11 @@ async fn login_user<W>(req: Request, mut resp_wtr: ResponseWriter<W>) -> Result<
     // against hashed password.
 
     // Since user is valid, we'll set a cookie with the jwt token
-    let mut resp = reply::code(200).unwrap();
-    identity.set_auth_token(user, &mut resp);
+    identity.set_auth_token(user, &mut resp_wtr);
 
     println!("Login req headers{:?}", req.headers());
-    println!("Login res headers{:?}", resp.headers());
+    println!("Login res headers{:?}", resp_wtr.response().headers());
 
-    *resp_wtr.response_mut() = resp;
     resp_wtr.send().await
 }
 
@@ -85,13 +82,11 @@ async fn logout_user<W>(req: Request, mut resp_wtr: ResponseWriter<W>) -> Result
 
     let identity = req.data::<Identity>().unwrap();
 
-    let mut resp = reply::code(200).unwrap();
-    identity.forget(&mut resp);
+    identity.forget(&mut resp_wtr);
 
     println!("Logout req headers{:?}", req.headers());
-    println!("Logout res headers{:?}", resp.headers());
+    println!("Logout res headers{:?}", resp_wtr.response().headers());
 
-    *resp_wtr.response_mut() = resp;
     resp_wtr.send().await
 }
 

@@ -17,7 +17,6 @@
 
 mod decode;
 mod encode;
-pub mod reply;
 mod response;
 #[cfg(feature = "router")]
 pub mod router;

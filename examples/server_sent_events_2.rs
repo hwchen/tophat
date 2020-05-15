@@ -5,7 +5,7 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::time::Duration;
 use piper::Arc;
-use tophat::server::{accept, reply, ResponseWritten};
+use tophat::server::{accept, ResponseWritten};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     pretty_env_logger::init();
@@ -21,8 +21,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let serve = accept(stream, |_req, mut resp_wtr| async {
                     let (tx, rx) = piper::chan(100);
                     let client = Client(rx);
-                    let resp = reply::sse(client);
-                    *resp_wtr.response_mut() = resp;
+                    resp_wtr.set_sse(client);
 
                     smol::Task::spawn(async {
                         let sse = resp_wtr.send().await;

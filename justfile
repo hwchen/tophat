@@ -1,5 +1,5 @@
 watch:
-    cargo watch -x 'check --all-features --examples --tests'
+    cargo watch -x 'check --all-features --examples --tests --docs'
 
 test:
     cargo watch -x 'test -- --nocapture'

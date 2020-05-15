@@ -5,7 +5,7 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::time::Duration;
 use piper::{Arc, Mutex};
-use tophat::server::{accept, reply};
+use tophat::server::accept;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     pretty_env_logger::init();
@@ -35,9 +35,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let task = Task::spawn(async move {
                 let serve = accept(stream, |_req, mut resp_wtr| async {
                     let client = ping_machine.lock().add_client();
-                    let resp = reply::sse(client);
+                    resp_wtr.set_sse(client);
 
-                    *resp_wtr.response_mut() = resp;
                     resp_wtr.send().await
                 }).await;
 
