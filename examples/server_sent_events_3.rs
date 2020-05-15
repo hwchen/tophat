@@ -26,12 +26,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let tx_1 = tx.clone();
 
             let task = Task::spawn(async move {
-                let serve = accept(stream, |_req, resp_wtr| async {
+                let serve = accept(stream, |_req, mut resp_wtr| async {
                     let client = Client(rx.clone());
                     let resp = reply::sse(client);
+                    *resp_wtr.response_mut() = resp;
 
                     smol::Task::spawn(async {
-                        let sse = resp_wtr.send(resp).await;
+                        let sse = resp_wtr.send().await;
 
                         println!("hit");
 

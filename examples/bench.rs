@@ -1,4 +1,3 @@
-use http::Response;
 use smol::{Async, Task};
 use std::net::TcpListener;
 use piper::Arc;
@@ -14,8 +13,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             let task = Task::spawn(async move {
                 let serve = accept(stream, |_req, resp_wtr| async {
-                    let resp = Response::new("".into());
-                    resp_wtr.send(resp).await
+                    resp_wtr.send().await
                 }).await;
 
                 if let Err(err) = serve {

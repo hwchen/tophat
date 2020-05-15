@@ -33,11 +33,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let ping_machine = ping_machine.clone();
 
             let task = Task::spawn(async move {
-                let serve = accept(stream, |_req, resp_wtr| async {
+                let serve = accept(stream, |_req, mut resp_wtr| async {
                     let client = ping_machine.lock().add_client();
                     let resp = reply::sse(client);
 
-                    resp_wtr.send(resp).await
+                    *resp_wtr.response_mut() = resp;
+                    resp_wtr.send().await
                 }).await;
 
                 if let Err(err) = serve {

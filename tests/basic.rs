@@ -2,7 +2,6 @@ mod chunked_text_big;
 mod test_client;
 use test_client::Cursor;
 
-use http::Response as HttpResponse;
 use http::{
     header::{
         self,
@@ -29,9 +28,8 @@ fn test_request_empty_body() {
         );
 
         accept(testclient.clone(), |_req, resp_wtr| async move {
-            let resp = HttpResponse::new(Body::empty());
             // Won't compile if done is not returned in Ok!
-            let done = resp_wtr.send(resp).await.unwrap();
+            let done = resp_wtr.send().await.unwrap();
 
             Ok(done)
         })
@@ -50,7 +48,7 @@ fn test_request_basic_with_body_and_query() {
             "HTTP/1.1 200 OK\r\ncontent-length: 12\r\n\r\nHello tophat",
         );
 
-        accept(testclient.clone(), |req, resp_wtr| async move {
+        accept(testclient.clone(), |req, mut resp_wtr| async move {
             // some basic parsing tests
             assert_eq!(req.uri().path(), Uri::from_static("/foo/bar"));
             assert_eq!(req.uri().query(), Some("one=two"));
@@ -63,8 +61,8 @@ fn test_request_basic_with_body_and_query() {
 
             let res_body = format!("Hello {}", body);
 
-            let resp = HttpResponse::new(res_body.into());
-            let done = resp_wtr.send(resp).await.unwrap();
+            resp_wtr.set_body(res_body.into());
+            let done = resp_wtr.send().await.unwrap();
 
             Ok(done)
         })
@@ -83,8 +81,7 @@ fn test_request_missing_method() {
         );
 
         accept(testclient.clone(), |_req, resp_wtr| async move {
-            let resp = HttpResponse::new(Body::empty());
-            resp_wtr.send(resp).await
+            resp_wtr.send().await
         })
         .await
         .unwrap();
@@ -102,8 +99,7 @@ fn test_request_missing_host() {
         );
 
         accept(testclient.clone(), |_req, resp_wtr| async move {
-            let resp = HttpResponse::new(Body::empty());
-            resp_wtr.send(resp).await
+            resp_wtr.send().await
         })
         .await
         .unwrap();
@@ -125,8 +121,7 @@ fn test_request_path() {
         accept(testclient.clone(), |req, resp_wtr| async move {
             assert_eq!(*req.uri(), Uri::from_static("/foo/bar"));
             assert_eq!(*req.uri().path(), Uri::from_static("/foo/bar"));
-            let resp = HttpResponse::new(Body::empty());
-            resp_wtr.send(resp).await
+            resp_wtr.send().await
         })
         .await
         .unwrap();
@@ -142,8 +137,7 @@ fn test_request_path() {
         accept(testclient.clone(), |req, resp_wtr| async move {
             assert_eq!(*req.uri(), Uri::from_static("https://wunder.org/foo/bar"));
             assert_eq!(*req.uri().path(), Uri::from_static("/foo/bar"));
-            let resp = HttpResponse::new(Body::empty());
-            resp_wtr.send(resp).await
+            resp_wtr.send().await
         })
         .await
         .unwrap();
@@ -157,8 +151,7 @@ fn test_request_path() {
         );
 
         accept(testclient.clone(), |_req, resp_wtr| async move {
-            let resp = HttpResponse::new(Body::empty());
-            resp_wtr.send(resp).await
+            resp_wtr.send().await
         })
         .await
         .unwrap();
@@ -177,8 +170,7 @@ fn test_request_version() {
         );
 
         accept(testclient.clone(), |_req, resp_wtr| async move {
-            let resp = HttpResponse::new(Body::empty());
-            resp_wtr.send(resp).await
+            resp_wtr.send().await
         })
         .await
         .unwrap();
@@ -194,8 +186,7 @@ fn test_request_version() {
         );
 
         accept(testclient.clone(), |_req, resp_wtr| async move {
-            let resp = HttpResponse::new(Body::empty());
-            resp_wtr.send(resp).await
+            resp_wtr.send().await
         })
         .await
         .unwrap();
@@ -215,8 +206,7 @@ fn test_transfer_encoding_content_length() {
         );
 
         accept(testclient.clone(), |_req, resp_wtr| async move {
-            let resp = HttpResponse::new(Body::empty());
-            resp_wtr.send(resp).await
+            resp_wtr.send().await
         })
         .await
         .unwrap();
@@ -237,10 +227,9 @@ fn test_dont_allow_user_set_body_type_header() {
             RESP_200,
         );
 
-        accept(testclient.clone(), |_req, resp_wtr| async move {
-            let mut resp = HttpResponse::new(Body::empty());
-            resp.headers_mut().append(header::TRANSFER_ENCODING, "chunked".parse().unwrap());
-            resp_wtr.send(resp).await
+        accept(testclient.clone(), |_req, mut resp_wtr| async move {
+            resp_wtr.append_header(header::TRANSFER_ENCODING, "chunked".parse().unwrap());
+            resp_wtr.send().await
         })
         .await
         .unwrap();
@@ -254,10 +243,10 @@ fn test_dont_allow_user_set_body_type_header() {
             "HTTP/1.1 200 OK\r\ntransfer-encoding: chunked\r\n\r\n0\r\n\r\n",
         );
 
-        accept(testclient.clone(), |_req, resp_wtr| async move {
-            let mut resp = HttpResponse::new(Body::from_reader(Cursor::new(""), None));
-            resp.headers_mut().append(header::CONTENT_LENGTH, "20".parse().unwrap());
-            resp_wtr.send(resp).await
+        accept(testclient.clone(), |_req, mut resp_wtr| async move {
+            resp_wtr.set_body(Body::from_reader(Cursor::new(""), None));
+            resp_wtr.append_header(header::CONTENT_LENGTH, "20".parse().unwrap());
+            resp_wtr.send().await
         })
         .await
         .unwrap();
@@ -276,10 +265,9 @@ fn test_response_date() {
             RESP_200,
         );
 
-        accept(testclient.clone(), |_req, resp_wtr| async move {
-            let mut resp = HttpResponse::new(Body::empty());
-            resp.headers_mut().append(header::DATE, "Wed, 21 Oct 2015 07:28:00 GMT".parse().unwrap());
-            resp_wtr.send(resp).await
+        accept(testclient.clone(), |_req, mut resp_wtr| async move {
+            resp_wtr.append_header(header::DATE, "Wed, 21 Oct 2015 07:28:00 GMT".parse().unwrap());
+            resp_wtr.send().await
         })
         .await
         .unwrap();
@@ -297,10 +285,9 @@ fn test_set_content_type_mime() {
             "HTTP/1.1 200 OK\r\ncontent-length: 0\r\ncontent-type: text/plain\r\n\r\n",
         );
 
-        accept(testclient.clone(), |_req, resp_wtr| async move {
-            let mut resp = HttpResponse::new(Body::empty());
-            resp.headers_mut().append(header::CONTENT_TYPE, "text/plain".parse().unwrap());
-            resp_wtr.send(resp).await
+        accept(testclient.clone(), |_req, mut resp_wtr| async move {
+            resp_wtr.append_header(header::CONTENT_TYPE, "text/plain".parse().unwrap());
+            resp_wtr.send().await
         })
         .await
         .unwrap();
@@ -346,8 +333,7 @@ fn test_decode_transfer_encoding_chunked() {
                 )]
             );
 
-            let resp = HttpResponse::new(Body::empty());
-            resp_wtr.send(resp).await
+            resp_wtr.send().await
         })
         .await
         .unwrap();
@@ -383,8 +369,7 @@ fn test_decode_transfer_encoding_chunked() {
             assert_eq!(body, "MozillaDeveloperNetwork");
             assert!(trailer.headers.is_empty());
 
-            let resp = HttpResponse::new(Body::empty());
-            resp_wtr.send(resp).await
+            resp_wtr.send().await
         })
         .await
         .unwrap();
@@ -404,12 +389,11 @@ fn test_encode_transfer_encoding_chunked() {
             2,
         );
 
-        accept(testclient.clone(), |_req, resp_wtr| async move {
+        accept(testclient.clone(), |_req, mut resp_wtr| async move {
             let body_str = Cursor::new("Hello tophat!");
-            let body = Body::from_reader(body_str, None);
+            resp_wtr.set_body(Body::from_reader(body_str, None));
 
-            let resp = HttpResponse::new(body);
-            resp_wtr.send(resp).await
+            resp_wtr.send().await
         })
         .await
         .unwrap();
@@ -430,12 +414,11 @@ fn test_encode_transfer_encoding_chunked_big() {
             1,
         );
 
-        accept(testclient.clone(), |_req, resp_wtr| async move {
+        accept(testclient.clone(), |_req, mut resp_wtr| async move {
             let body_str = Cursor::new(chunked_text_big::TEXT);
-            let body = Body::from_reader(body_str, None);
+            resp_wtr.set_body(Body::from_reader(body_str, None));
 
-            let resp = HttpResponse::new(body);
-            resp_wtr.send(resp).await
+            resp_wtr.send().await
         })
         .await
         .unwrap();

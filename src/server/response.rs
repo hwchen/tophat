@@ -1,6 +1,6 @@
 use futures_io::AsyncWrite;
 use http::{
-    header::HeaderMap,
+    header::{HeaderMap, HeaderName, HeaderValue},
     status::StatusCode,
     version::Version,
 };
@@ -69,6 +69,8 @@ pub struct ResponseWriter<W>
 where
     W: AsyncWrite + Clone + Send + Sync + Unpin + 'static,
 {
+    // TODO make not public
+    pub response: Response,
     pub writer: W,
 }
 
@@ -78,8 +80,8 @@ where
 {
     /// send response, and TODO return number of bytes written (I guess this would be a struct for more
     /// complicated sends, like with compression)
-    pub async fn send(self, resp: Response) -> Result<ResponseWritten, Error> {
-        let (parts, body) = resp.into_parts();
+    pub async fn send(self) -> Result<ResponseWritten, Error> {
+        let (parts, body) = self.response.into_parts();
 
         let inner_resp = InnerResponse {
             status: parts.status,
@@ -89,6 +91,50 @@ where
         };
 
         Ok(inner_resp.send(self.writer).await?)
+    }
+
+    pub async fn send_code(self, code: u16) -> Result<ResponseWritten, Error> {
+        let mut this = self;
+        this.set_code(code);
+
+        this.send().await
+    }
+
+    pub fn set_status(&mut self, status: http::StatusCode) -> &mut Self {
+        *self.response.status_mut() = status;
+        self
+    }
+
+    /// Internally panics if code is incorrect
+    pub fn set_code(&mut self, code: u16) -> &mut Self {
+        *self.response.status_mut() = http::StatusCode::from_u16(code).unwrap();
+        self
+    }
+
+    pub fn set_body(&mut self, body: Body) -> &mut Self {
+        *self.response.body_mut() = body;
+        self
+    }
+
+    pub fn append_header(&mut self, header_name: HeaderName, header_value: HeaderValue) -> &mut Self {
+        self.response.headers_mut().append(header_name, header_value);
+        self
+    }
+
+    pub fn insert_header(&mut self, header_name: HeaderName, header_value: HeaderValue) -> &mut Self {
+        self.response.headers_mut().insert(header_name, header_value);
+        self
+    }
+
+    // mutable access to the full response
+    pub fn response_mut(&mut self) -> &mut Response {
+        &mut self.response
+    }
+
+    pub fn set_text(&mut self, text: String) -> &mut Self {
+        *self.response.body_mut() = text.into();
+        self.response.headers_mut().insert(http::header::CONTENT_TYPE, "text/plain".parse().unwrap());
+        self
     }
 }
 

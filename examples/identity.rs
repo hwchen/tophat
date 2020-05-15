@@ -57,7 +57,7 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     })
 }
 
-async fn login_user<W>(req: Request, resp_wtr: ResponseWriter<W>) -> Result<ResponseWritten>
+async fn login_user<W>(req: Request, mut resp_wtr: ResponseWriter<W>) -> Result<ResponseWritten>
     where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
 {
     let identity = req.data::<Identity>().unwrap();
@@ -73,10 +73,11 @@ async fn login_user<W>(req: Request, resp_wtr: ResponseWriter<W>) -> Result<Resp
     println!("Login req headers{:?}", req.headers());
     println!("Login res headers{:?}", resp.headers());
 
-    resp_wtr.send(resp).await
+    *resp_wtr.response_mut() = resp;
+    resp_wtr.send().await
 }
 
-async fn logout_user<W>(req: Request, resp_wtr: ResponseWriter<W>) -> Result<ResponseWritten>
+async fn logout_user<W>(req: Request, mut resp_wtr: ResponseWriter<W>) -> Result<ResponseWritten>
     where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
 {
     // Since we're using jwt tokens, we don't need to do a check on some session store to remove
@@ -90,11 +91,12 @@ async fn logout_user<W>(req: Request, resp_wtr: ResponseWriter<W>) -> Result<Res
     println!("Logout req headers{:?}", req.headers());
     println!("Logout res headers{:?}", resp.headers());
 
-    resp_wtr.send(resp).await
+    *resp_wtr.response_mut() = resp;
+    resp_wtr.send().await
 }
 
 // Says hello to user based on user login name
-async fn hello_user<W>(req: Request, resp_wtr: ResponseWriter<W>) -> Result<ResponseWritten>
+async fn hello_user<W>(req: Request, mut resp_wtr: ResponseWriter<W>) -> Result<ResponseWritten>
     where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
 {
     let identity = req.data::<Identity>().unwrap();
@@ -103,10 +105,12 @@ async fn hello_user<W>(req: Request, resp_wtr: ResponseWriter<W>) -> Result<Resp
 
     let user = match identity.authorized_user(&req) {
         Some(u) => u,
-        None => return resp_wtr.send(reply::code(400).unwrap()).await,
+        None => {
+            resp_wtr.set_code(400);
+            return resp_wtr.send().await;
+        },
     };
 
-    let resp = reply::text(format!("Hello {}", user));
-
-    resp_wtr.send(resp).await
+    resp_wtr.set_text(format!("Hello {}", user));
+    resp_wtr.send().await
 }

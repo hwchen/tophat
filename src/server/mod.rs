@@ -31,6 +31,7 @@ use std::time::Duration;
 pub use crate::body::Body;
 pub use crate::error::{Error, Result};
 pub use crate::request::Request;
+use crate::response::Response;
 use crate::timeout::{timeout, TimeoutError};
 
 use self::decode::decode;
@@ -106,7 +107,7 @@ where
         // Users of tophat should build their own error responses.
         // Perhaps later I can build in a hook for custom error handling, but I should wait for use
         // cases.
-        let resp_wtr = ResponseWriter { writer: io.clone() };
+        let resp_wtr = ResponseWriter { writer: io.clone(), response: Response::new(Body::empty()) };
         if endpoint(req, resp_wtr).await.is_err() {
             let _ = InnerResponse::internal_server_error()
                 .send(io.clone()).await;

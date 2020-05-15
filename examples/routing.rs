@@ -1,5 +1,5 @@
 use futures_util::io::{AsyncRead, AsyncWrite};
-use http::{Method, Response};
+use http::Method;
 use smol::{Async, Task};
 use std::net::TcpListener;
 use piper::Arc;
@@ -39,7 +39,7 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     })
 }
 
-async fn hello_user< W>(req: Request, resp_wtr: ResponseWriter<W>) -> Result<ResponseWritten>
+async fn hello_user< W>(req: Request, mut resp_wtr: ResponseWriter<W>) -> Result<ResponseWritten>
     where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
 {
     //smol::Timer::after(std::time::Duration::from_secs(5)).await;
@@ -58,16 +58,13 @@ async fn hello_user< W>(req: Request, resp_wtr: ResponseWriter<W>) -> Result<Res
         resp_body.push_str(&format!(" and {}", *data_string));
     }
 
-    let resp = Response::new(resp_body.into());
+    resp_wtr.set_body(resp_body.into());
 
-    resp_wtr.send(resp).await
+    resp_wtr.send().await
 }
 
 async fn blank<W>(_req: Request, resp_wtr: ResponseWriter<W>) -> Result<ResponseWritten>
     where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
 {
-    let resp = Response::new(tophat::Body::empty());
-
-
-    resp_wtr.send(resp).await
+    resp_wtr.send().await
 }

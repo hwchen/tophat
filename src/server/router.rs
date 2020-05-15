@@ -17,12 +17,11 @@
 //! Very Basic router
 //!
 use futures_util::io::{AsyncRead, AsyncWrite};
-use http::Method;
+use http::{Method, StatusCode};
 use std::future::Future;
 use std::pin::Pin;
 use path_tree::PathTree;
 use piper::Arc;
-use crate::Body;
 use crate::server::{Request, ResponseWriter, ResponseWritten, Result};
 
 pub type Params = Vec<(String, String)>;
@@ -42,7 +41,7 @@ impl<W> Router<W>
         RouterBuilder::new()
     }
 
-    pub async fn route(&self, mut req: Request, resp_wtr: ResponseWriter<W>) -> Result<ResponseWritten> {
+    pub async fn route(&self, mut req: Request, mut resp_wtr: ResponseWriter<W>) -> Result<ResponseWritten> {
         let path = "/".to_owned() + req.method().as_str() + req.uri().path();
 
         match self.tree.find(&path) {
@@ -61,11 +60,8 @@ impl<W> Router<W>
                 endpoint.call(req, resp_wtr).await
             },
             None => {
-                let resp = http::Response::builder()
-                    .status(http::StatusCode::NOT_FOUND)
-                    .body(Body::empty())
-                    .unwrap();
-                resp_wtr.send(resp).await
+                resp_wtr.set_status(StatusCode::NOT_FOUND);
+                resp_wtr.send().await
             },
         }
     }
