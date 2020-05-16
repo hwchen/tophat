@@ -107,6 +107,8 @@ where
         // Perhaps later I can build in a hook for custom error handling, but I should wait for use
         // cases.
         let resp_wtr = ResponseWriter { writer: io.clone(), response: Response::new(Body::empty()) };
+        // TODO will spawning task here approximate multiplexing? Ah, but then I need integration
+        // with executor.
         if endpoint(req, resp_wtr).await.is_err() {
             let _ = InnerResponse::internal_server_error()
                 .send(io.clone()).await;
