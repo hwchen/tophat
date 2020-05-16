@@ -67,5 +67,9 @@ required-features = ["router"]
 name = "identity"
 required-features = ["identity", "router"]
 
+[[example]]
+name = "middleware"
+required-features = ["router"]
+
 [package.metadata.docs.rs]
 all-features = true
