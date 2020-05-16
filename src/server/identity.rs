@@ -16,6 +16,7 @@
 //! `identity.forget(res)`
 
 use cookie::Cookie;
+use futures_util::io::{AsyncRead, AsyncWrite};
 use http::header;
 use jsonwebtoken::{encode, decode, Header, Validation, EncodingKey, DecodingKey};
 use serde::{Serialize, Deserialize};
@@ -23,8 +24,7 @@ use std::convert::TryInto;
 use std::time::Duration;
 use thiserror::Error as ThisError;
 
-use crate::{Request, Response};
-use crate::server::reply;
+use crate::{http::StatusCode, server::ResponseWriter, Body, Request, Response};
 
 #[derive(Clone)]
 pub struct Identity {
@@ -77,7 +77,9 @@ impl Identity {
         }
     }
 
-    pub fn set_auth_token(&self, user: &str, resp: &mut Response) {
+    pub fn set_auth_token<W>(&self, user: &str, resp_wtr: &mut ResponseWriter<W>)
+        where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
+    {
         // in header set_cookie and provide token
         //
         // This should never fail
@@ -88,13 +90,15 @@ impl Identity {
             .http_only(self.cookie_http_only)
             .secure(self.cookie_secure)
             .finish();
-        resp.headers_mut().append(
+        resp_wtr.append_header(
             header::SET_COOKIE,
             cookie.to_string().parse().unwrap(),
         );
     }
 
-    pub fn forget(&self, resp: &mut Response) {
+    pub fn forget<W>(&self, resp_wtr: &mut ResponseWriter<W>)
+        where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
+    {
         // in header set_cookie and provide "blank" token
         //
         // This should never fail
@@ -105,7 +109,7 @@ impl Identity {
             .http_only(self.cookie_http_only)
             .secure(self.cookie_secure)
             .finish();
-        resp.headers_mut().append(
+        resp_wtr.append_header(
             header::SET_COOKIE,
             cookie.to_string().parse().unwrap(),
         );
@@ -259,6 +263,8 @@ pub enum IdentityFail {
 
 impl IdentityFail {
     pub fn to_response(&self) -> crate::Response {
-        reply::code(400).unwrap()
+        let mut resp = Response::new(Body::empty());
+        *resp.status_mut() = StatusCode::BAD_REQUEST;
+        resp
     }
 }

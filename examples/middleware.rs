@@ -1,3 +1,8 @@
+//! Example of "middleware" with simple cors.
+//!
+//! It's kind of a do-it-yourself middleware, there's not formal framework for it. It should be
+//! easy enough to plug in.
+
 use futures_util::io::{AsyncRead, AsyncWrite};
 use http::Method;
 use smol::{Async, Task};
@@ -8,23 +13,37 @@ use tophat::server::{accept, Request, ResponseWriter, ResponseWritten, Result, R
 fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     pretty_env_logger::init();
 
+    let cors = Arc::new(Cors {
+        allow_origin: "*".to_owned(),
+    });
+
     let router = Router::build()
         .data("Data from datastore")
         .at(Method::GET, "/:name", hello_user)
-        .at(Method::GET, "/", blank)
         .finish();
 
     let listener = Async::<TcpListener>::bind("127.0.0.1:9999")?;
 
     smol::run(async {
         loop {
+            let cors = cors.clone();
             let router = router.clone();
 
             let (stream, _) = listener.accept().await?;
             let stream = Arc::new(stream);
 
             let task = Task::spawn(async move {
-                let serve = accept(stream, |req, resp_wtr| async {
+                let serve = accept(stream, |req, mut resp_wtr| async {
+                    // Do the middleware thing here
+                    // Cors preflight would require something like
+                    // ```
+                    // if cors.preflight(&req, &mut resp_wtr) {
+                    //     return resp_wtr.send();
+                    // }
+                    // ```
+                    cors.simple_cors(&req, &mut resp_wtr);
+
+                    // back to routing here
                     let res = router.route(req, resp_wtr).await;
                     res
                 }).await;
@@ -63,8 +82,26 @@ async fn hello_user< W>(req: Request, mut resp_wtr: ResponseWriter<W>) -> Result
     resp_wtr.send().await
 }
 
-async fn blank<W>(_req: Request, resp_wtr: ResponseWriter<W>) -> Result<ResponseWritten>
-    where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
-{
-    resp_wtr.send().await
+struct Cors {
+    allow_origin: String,
+}
+
+impl Cors {
+
+    // Sets the Access Control Header on the Response of a Responsewriter, if Origin in Request is
+    // set.
+    //
+    // No preflight.
+    //
+    // Unless the user changes the header in the endpoint, the header should be sent to the client.
+    fn simple_cors<W>(&self, req: &Request, resp_wtr: &mut ResponseWriter<W>)
+        where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
+    {
+        if req.headers().get("Origin").is_some() {
+            resp_wtr.insert_header(
+                "Access-Control-Allow-Origin",
+                self.allow_origin.parse().unwrap(),
+            );
+        }
+    }
 }

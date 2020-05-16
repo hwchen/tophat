@@ -1,4 +1,4 @@
-use http::{header, Response};
+use http::header;
 use smol::{Async, Task};
 use std::net::TcpListener;
 use piper::Arc;
@@ -15,7 +15,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let stream = Arc::new(stream);
 
             let task = Task::spawn(async move {
-                let serve = accept(stream, |req, resp_wtr| async {
+                let serve = accept(stream, |req, mut resp_wtr| async {
                     println!("{:?}", *req.uri());
                     println!("{:?}", req.version());
                     println!("{:?}", req.method());
@@ -24,9 +24,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                     let req_body = req.into_body().into_string().await.unwrap();
                     let resp_body = format!("Hello, {}!", req_body);
-                    let resp = Response::new(resp_body.into());
+                    resp_wtr.set_body(resp_body.into());
 
-                    resp_wtr.send(resp).await
+                    resp_wtr.send().await
                 }).await;
 
                 if let Err(err) = serve {
