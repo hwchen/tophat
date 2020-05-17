@@ -195,6 +195,34 @@ fn test_request_version() {
     });
 }
 
+// sends message _ands_ closes connection
+#[test]
+fn test_transfer_encoding_unsupported() {
+    smol::block_on(async {
+        let testclient = TestClient::new(
+            "GET /foo/bar HTTP/1.1\r\nHost: example.org\r\nContent-Length: 0\r\nTransfer-Encoding: gzip\r\n\r\n",
+            "HTTP/1.1 501 Not Implemented\r\ncontent-length: 0\r\n\r\n",
+        );
+
+        let res = accept(testclient.clone(), |_req, resp_wtr| async move {
+            resp_wtr.send().await
+        })
+        .await;
+
+        match res {
+            Ok(_) => panic!(),
+            Err(err) => {
+                match err {
+                    tophat::Error::ConnectionClosedUnsupportedTransferEncoding => (),
+                    _ => panic!(),
+                }
+            }
+        }
+
+        testclient.assert();
+    });
+}
+
 #[test]
 // TODO handle transfer-encoding chunked and content-length clash
 #[ignore] // temporary

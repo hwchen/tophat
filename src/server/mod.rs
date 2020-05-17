@@ -17,9 +17,10 @@ use futures_io::{AsyncRead, AsyncWrite};
 use std::time::Duration;
 
 use crate::body::Body;
-use crate::error::Result;
+use crate::error::{Error, Result};
 use crate::request::Request;
 use crate::response::Response;
+use crate::server::decode::DecodeFail;
 use crate::timeout::{timeout, TimeoutError};
 
 use self::decode::decode;
@@ -63,10 +64,8 @@ where
                     break; // EOF or timeout
                 },
                 Ok(Err(err)) => {
-                    // send a resp for errors from decoding, and continue on to next request
-                    if let Some(err_resp) = decode::fail_to_response_and_log(err) {
-                        let _ = err_resp.send(io.clone()).await;
-                    }
+                    handle_decode_fail(err, io.clone()).await?;
+                    // and continue on to next request
                     continue;
                 }
             }
@@ -76,10 +75,8 @@ where
                 Ok(Some(r)) => r,
                 Ok(None) => break, // EOF
                 Err(err) => {
-                    // send a resp for errors from decoding, and continue on to next request
-                    if let Some(err_resp) = decode::fail_to_response_and_log(err) {
-                        let _ = err_resp.send(io.clone()).await;
-                    }
+                    handle_decode_fail(err, io.clone()).await?;
+                    // and continue on to next request
                     continue;
                 },
             }
@@ -115,4 +112,23 @@ impl Default for ServerOpts {
             timeout: Some(Duration::from_secs(60)),
         }
     }
+}
+
+// handles both writing response, and currently picking out which errors will return err and close
+// connection. TODO could use more infrastructure in decode to name which decode fails should become
+// lib-level errors. But it was a bit too boilerplatey to implement in the decode module.
+async fn handle_decode_fail<RW>(fail: DecodeFail, io: RW) -> std::result::Result<(), Error>
+where
+    RW: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
+{
+    // send a resp for errors from decoding
+    if let Some(err_resp) = decode::fail_to_response_and_log(&fail) {
+        let _ = err_resp.send(io.clone()).await;
+    }
+    // Early return if there's a major error.
+    if let Some(crate_err) = decode::fail_to_crate_err(fail) {
+        return Err(crate_err);
+    }
+
+    Ok(())
 }

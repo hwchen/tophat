@@ -56,6 +56,16 @@ impl InnerResponse {
         }
     }
 
+    /// used for unimplemented transfer-encoding in decoding. 501
+    pub(crate) fn not_implemented() -> Self {
+        Self {
+            status: StatusCode::NOT_IMPLEMENTED,
+            headers: HeaderMap::new(),
+            version: Version::default(),
+            body: Body::empty(),
+        }
+    }
+
     pub(crate) async fn send<W>(self, writer: W) -> Result<ResponseWritten, ResponseFail>
         where W: AsyncWrite + Clone + Send + Sync + Unpin + 'static,
     {

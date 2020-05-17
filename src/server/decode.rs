@@ -10,6 +10,7 @@ use futures_util::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
 use http::header::{self, HeaderName, HeaderValue};
 use thiserror::Error as ThisError;
 
+use crate::error::Error;
 use crate::Request;
 use crate::body::Body;
 use crate::chunked::ChunkedDecoder;
@@ -17,6 +18,8 @@ use crate::chunked::ChunkedDecoder;
 use super::response_writer::InnerResponse;
 
 const LF: u8 = b'\n';
+
+const SUPPORTED_TRANSFER_ENCODING: [&[u8]; 2] = [b"chunked", b"identity"];
 
 /// Decode and http request
 ///
@@ -85,6 +88,12 @@ where
                 .map_err(|_| HttpInvalidContentLength)?
             );
         } else if header.name == header::TRANSFER_ENCODING {
+            // return error if transfer encoding not supported
+            // TODO this allocates to lowercase ascii. fix?
+            if !SUPPORTED_TRANSFER_ENCODING.contains(&header.value.to_ascii_lowercase().as_slice()) {
+                return Err(HttpUnsupportedTransferEncoding);
+            }
+
             is_te = true;
             is_chunked = header.value == b"chunked"; // TODO make sure there's no variation in chunked
         } else if header.name == header::HOST {
@@ -136,10 +145,15 @@ where
 
 #[derive(ThisError, Debug)]
 pub(crate) enum DecodeFail {
+    // These errors should result in a connection closure
     #[error("Connection Lost: {0}")]
     ConnectionLost(std::io::Error),
     #[error("Http parse malformed head")]
     HttpMalformedHead,
+    #[error("Http transfer encoding not supported")]
+    HttpUnsupportedTransferEncoding,
+
+    // Below failures should be handled with a Response, but not with connection closure.
 
     // TODO check that these are actually errors, and not just something to handle
     #[error("Http no path found")]
@@ -170,7 +184,7 @@ pub(crate) enum DecodeFail {
     HttpHeaderValue(#[from] http::header::InvalidHeaderValue),
 }
 
-pub(crate) fn fail_to_response_and_log(fail: DecodeFail) -> Option<InnerResponse> {
+pub(crate) fn fail_to_response_and_log(fail: &DecodeFail) -> Option<InnerResponse> {
     use log::*;
     use DecodeFail::*;
 
@@ -179,7 +193,22 @@ pub(crate) fn fail_to_response_and_log(fail: DecodeFail) -> Option<InnerResponse
 
     match fail {
         ConnectionLost(_) => None,
+        HttpUnsupportedTransferEncoding => Some(InnerResponse::not_implemented()),
         Http10NotSupported => Some(InnerResponse::version_not_supported()),
         _ => Some(InnerResponse::bad_request()),
+    }
+}
+
+pub(crate) fn fail_to_crate_err(fail: DecodeFail) -> Option<Error> {
+    use log::*;
+    use DecodeFail::*;
+
+    // TODO improve logging message
+    debug!("Decode crate-level error: {} ", fail);
+
+    match fail {
+        ConnectionLost(err) => Some(Error::ConnectionLost(err)),
+        HttpUnsupportedTransferEncoding => Some(Error::ConnectionClosedUnsupportedTransferEncoding),
+        _ => None,
     }
 }
