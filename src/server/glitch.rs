@@ -13,7 +13,8 @@
 //!
 //! ## Functionality
 //! A `Glitch` allows you to:
-//! - Just use `?` on any error, and it will be turned into a 500 response.
+//! - Just use `?` on any error, and it will be turned into a 500 response. (`anyhow` feature
+//! only)
 //! - use `.map_err` to easily convert your error to a Glitch.
 //!
 //! In this system, it's easy to use standard `From` and `Into` traits to convert your custom
@@ -28,8 +29,7 @@ use http::{
     version::Version,
 };
 
-//use crate::server::InnerResponse;
-
+use crate::server::InnerResponse;
 
 pub type Result<T> = std::result::Result<T, Glitch>;
 
@@ -40,6 +40,78 @@ pub struct Glitch {
     pub(crate) headers: Option<HeaderMap>,
     pub(crate) version: Option<Version>,
     pub(crate) message: Option<String>,
+
+    // This is an Option in case somebody has anyhow feature chosen, but just wants to
+    // directly make a Glitch without converting from an error using `From`.
+    #[cfg(feature = "anyhow")]
+    pub(crate) anyhow: Option<anyhow_1::Error>,
 }
 
-// convert From Glitch to InnerResponse
+#[cfg(feature = "anyhow")]
+impl<E> From<E> for Glitch
+where
+    E: std::error::Error + Send + Sync + 'static,
+{
+    fn from(error: E) -> Self {
+        Self::new_with_anyhow(error)
+    }
+}
+
+impl Glitch {
+    #[cfg(feature = "anyhow")]
+    pub(crate) fn new_with_anyhow<E>(error: E) -> Self
+    where
+        E: std::error::Error + Send + Sync + 'static,
+    {
+        Self {
+            status: None,
+            headers: None,
+            version: None,
+            message: None,
+            anyhow: Some(error.into()),
+        }
+    }
+
+    pub(crate) fn into_inner_response(self) -> InnerResponse {
+        // TODO only return anyhow error in body if some debug flag is turned on
+        //#[cfg(feature = "anyhow")]
+        //let body = if let Some(message) = self.message {
+        //    message.into()
+        //} else if let Some(any_err) = self.anyhow {
+        //    any_err.to_string().into()
+        //} else {
+        //    Body::empty()
+        //};
+
+        let body =  self.message.unwrap_or_else(|| "".to_string()).into();
+
+        InnerResponse {
+            status: self.status.unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+            headers: self.headers.unwrap_or_else(HeaderMap::new),
+            version: self.version.unwrap_or(Version::HTTP_11),
+            body,
+        }
+    }
+
+    pub fn bad_request() -> Self {
+        Self {
+            status: Some(StatusCode::BAD_REQUEST),
+            headers: None,
+            version: None,
+            message: None,
+            #[cfg(feature = "anyhow")]
+            anyhow: None,
+        }
+    }
+
+    pub fn internal_server_error() -> Self {
+        Self {
+            status: None,
+            headers: None,
+            version: None,
+            message: None,
+            #[cfg(feature = "anyhow")]
+            anyhow: None,
+        }
+    }
+}

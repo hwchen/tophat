@@ -4,6 +4,9 @@ watch:
 test:
     cargo watch -x 'test -- --nocapture'
 
+test-anyhow:
+    cargo watch -x 'test --features=anyhow -- --nocapture'
+
 bench:
     cargo watch -x 'run --release --example bench'
 

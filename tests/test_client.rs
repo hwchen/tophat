@@ -1,3 +1,5 @@
+#![allow(dead_code)] // because of testing with and without anyhow errors
+
 //! TestClient for testing server
 
 use futures_io::{AsyncBufRead, AsyncRead, AsyncWrite};

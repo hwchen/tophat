@@ -95,8 +95,8 @@ where
         let resp_wtr = ResponseWriter { writer: io.clone(), response: Response::new(Body::empty()) };
         // TODO will spawning task here approximate multiplexing? Ah, but then I need integration
         // with executor.
-        if endpoint(req, resp_wtr).await.is_err() {
-            let _ = InnerResponse::internal_server_error()
+        if let Err(glitch) = endpoint(req, resp_wtr).await {
+            let _ = glitch.into_inner_response()
                 .send(io.clone()).await;
         }
     }

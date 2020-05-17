@@ -43,9 +43,14 @@ time = { version = "0.2.16", default_features = false, optional = true }
 # for cors (maybe use elsewhere?)
 headers = { version = "0.3.2", optional = true }
 
+# for anyhow integration with glitch
+anyhow_1 = { package = "anyhow", version = "1.0.31", optional = true }
+
 [features]
 # Nothing enabled by default
 default = []
+
+anyhow = ["anyhow_1"]
 
 cors = ["headers"]
 
