@@ -10,13 +10,12 @@ use std::net::TcpListener;
 use piper::Arc;
 use tophat::server::{
     accept,
+    cors::{Cors, Validated},
+    router::{Router, RouterRequestExt},
     Request,
     ResponseWriter,
     ResponseWritten,
     Result,
-    Router,
-    router::RouterRequestExt,
-    cors::{Cors, Validated},
 };
 
 fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {

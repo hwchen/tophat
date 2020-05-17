@@ -3,7 +3,14 @@ use http::Method;
 use smol::{Async, Task};
 use std::net::TcpListener;
 use piper::Arc;
-use tophat::server::{accept, Request, ResponseWriter, ResponseWritten, Result, Router, router::RouterRequestExt};
+use tophat::server::{
+    accept,
+    router::{Router, RouterRequestExt},
+    Request,
+    ResponseWriter,
+    ResponseWritten,
+    Result,
+};
 
 fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     pretty_env_logger::init();

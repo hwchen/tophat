@@ -38,8 +38,6 @@ use crate::timeout::{timeout, TimeoutError};
 use self::decode::decode;
 use self::response::InnerResponse;
 pub use self::response::{ResponseWriter, ResponseWritten};
-#[cfg(feature = "router")]
-pub use self::router::{Params, Router};
 
 /// Accept a new incoming Http/1.1 connection
 ///
