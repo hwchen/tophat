@@ -5,7 +5,7 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::time::Duration;
 use piper::Arc;
-use tophat::server::{accept, ResponseWritten};
+use tophat::server::accept;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     pretty_env_logger::init();
@@ -23,14 +23,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     let client = Client(rx);
                     resp_wtr.set_sse(client);
 
-                    smol::Task::spawn(async {
-                        let sse = resp_wtr.send().await;
+                    // a one-shot to send the result of the resp_wtr, so that we can exit the
+                    // endpoint.
+                    let (tx_res, rx_res) = piper::chan(1);
 
-                        println!("hit");
-
-                        if let Err(err) = sse {
-                            eprintln!("Error: {}", err);
-                        }
+                    smol::Task::spawn(async move {
+                        let sse_res = resp_wtr.send().await;
+                        tx_res.send(sse_res).await;
                     }).detach();
 
                     tx.send("data: lorem\n\n".to_owned()).await;
@@ -39,10 +38,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                     tx.send("data: ipsum\n\n".to_owned()).await;
 
-                    Ok(ResponseWritten)
-                    // tx gets dropped, so that resp_wtr stops sending, and
-                    // println gets hit. If the task got dropped, println shouldn't
-                    // get hit.
+                    // This rx will never receive because the stream will never close.
+                    //
+                    // If the exit from this endpoint was not dependent on the stream closing,
+                    // (i.e. `ResponseWritten` could be constructed by user), then the exit of the
+                    // endoint would drop the tx client, which would close the stream. However, I
+                    // don't think that is idiomatic behavior for an sse, they should be
+                    // long-lived.
+                    rx_res.recv().await.unwrap()
                 }).await;
 
                 if let Err(err) = serve {

@@ -62,7 +62,7 @@ impl InnerResponse {
         let mut encoder = Encoder::encode(self);
         let mut writer = writer;
         futures_util::io::copy(&mut encoder, &mut writer).await.map_err(ResponseFail::Connection)?;
-        Ok(ResponseWritten)
+        Ok(ResponseWritten {})
     }
 }
 
@@ -228,7 +228,10 @@ where
 
 // TODO have a ReponseResult, which may contain bytes read etc. And then have it transform into
 // ResponseWritten, to minimize boilerplate
-pub struct ResponseWritten;
+//
+// Currently an empty struct, not a unit struct, to make it impossible for user to create
+// themselves.
+pub struct ResponseWritten {}
 
 #[derive(ThisError, Debug)]
 pub(crate) enum ResponseFail {
