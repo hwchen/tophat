@@ -1,19 +1,6 @@
 #![deny(unsafe_code)]
 
 //! # tophat server
-//!
-//! ## Constructing a Response:
-//! - a `tophat::Response` is just an alias for an `http::Response<Body>`, where `Body` is
-//! tophat-specific streaming body. There are convenience methods for constructing bodies easily
-//! from streams and buffers.
-//! - content-type headers must be set manually. For those who want typed mimes, check out the
-//! `mime` crate.
-//! - body-type headers are ignored, because the encoder sets them depending on the type of body
-//! set:
-//!   - from streaming reader with length: fixed body
-//!   - from streaming reader without length: transfer-encoding, chunked
-//!   - from buffer (`Vec<u8>` or `String` or `&str`): fixed body
-//! - In the future, there may be some convenience methods for constructing common responses.
 
 #[cfg(feature = "cors")]
 pub mod cors;
