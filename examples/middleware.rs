@@ -8,12 +8,14 @@ use http::Method;
 use smol::{Async, Task};
 use std::net::TcpListener;
 use piper::Arc;
-use tophat::server::{
-    accept,
-    router::{Router, RouterRequestExt},
+use tophat::{
+    server::{
+        accept,
+        router::{Router, RouterRequestExt},
+        ResponseWriter,
+        ResponseWritten,
+    },
     Request,
-    ResponseWriter,
-    ResponseWritten,
     Result,
 };
 

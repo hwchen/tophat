@@ -4,13 +4,15 @@ use smol::{Async, Task};
 use std::net::TcpListener;
 use std::time::Duration;
 use piper::Arc;
-use tophat::server::{
-    accept,
-    identity::Identity,
-    router::{Router, RouterRequestExt},
+use tophat::{
+    server::{
+        accept,
+        identity::Identity,
+        router::{Router, RouterRequestExt},
+        ResponseWriter,
+        ResponseWritten,
+    },
     Request,
-    ResponseWriter,
-    ResponseWritten,
     Result,
 };
 

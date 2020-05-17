@@ -16,9 +16,9 @@ use futures_core::Future;
 use futures_io::{AsyncRead, AsyncWrite};
 use std::time::Duration;
 
-pub use crate::body::Body;
-pub use crate::error::{Error, Result};
-pub use crate::request::Request;
+use crate::body::Body;
+use crate::error::Result;
+use crate::request::Request;
 use crate::response::Response;
 use crate::timeout::{timeout, TimeoutError};
 
