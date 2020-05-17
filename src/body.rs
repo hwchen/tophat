@@ -4,7 +4,7 @@ use std::io;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-use crate::error::{Error, Result};
+use crate::error::Error;
 use crate::util::{empty, Cursor};
 use crate::trailers::{Trailers, TrailersSender};
 
@@ -13,8 +13,8 @@ pin_project_lite::pin_project! {
         #[pin]
         pub(crate) reader: Box<dyn AsyncBufRead + Unpin + Send + Sync + 'static>,
         pub(crate) length: Option<usize>,
-        trailer_sender: Option<piper::Sender<Result<Trailers>>>,
-        trailer_receiver: piper::Receiver<Result<Trailers>>,
+        trailer_sender: Option<piper::Sender<Result<Trailers, Error>>>,
+        trailer_receiver: piper::Receiver<Result<Trailers, Error>>,
     }
 }
 
@@ -57,20 +57,20 @@ impl Body {
         }
     }
 
-    pub async fn into_bytes(mut self) -> Result<Vec<u8>> {
+    pub async fn into_bytes(mut self) -> Result<Vec<u8>, Error> {
         let mut buf = Vec::with_capacity(1024);
         self.read_to_end(&mut buf).await.map_err(Error::BodyConversion)?;
         Ok(buf)
     }
 
-    pub async fn into_string(mut self) -> Result<String> {
+    pub async fn into_string(mut self) -> Result<String, Error> {
         let mut buf = String::with_capacity(self.length.unwrap_or(0));
         self.read_to_string(&mut buf).await.map_err(Error::BodyConversion)?;
         Ok(buf)
     }
 
     /// sending trailers not yet supported
-    pub async fn into_bytes_with_trailer(mut self) -> Result<(Vec<u8>, Option<Result<Trailers>>)> {
+    pub async fn into_bytes_with_trailer(mut self) -> Result<(Vec<u8>, Option<Result<Trailers, Error>>), Error> {
         let mut buf = Vec::with_capacity(1024);
         self.read_to_end(&mut buf).await.map_err(Error::BodyConversion)?;
         let trailer = self.recv_trailers().await;
@@ -78,7 +78,7 @@ impl Body {
     }
 
     /// sending trailers not yet supported
-    pub async fn into_string_with_trailer(mut self) -> Result<(String, Option<Result<Trailers>>)> {
+    pub async fn into_string_with_trailer(mut self) -> Result<(String, Option<Result<Trailers, Error>>), Error> {
         let mut buf = String::with_capacity(self.length.unwrap_or(0));
         self.read_to_string(&mut buf).await.map_err(Error::BodyConversion)?;
         let trailer = self.recv_trailers().await;
@@ -95,7 +95,7 @@ impl Body {
 
     /// Don't use this directly if you also want to read the body.
     /// In that case, prefer `into_{bytes, string}_with_trailer()
-    pub async fn recv_trailers(&self) -> Option<Result<Trailers>> {
+    pub async fn recv_trailers(&self) -> Option<Result<Trailers, Error>> {
         self.trailer_receiver.recv().await
     }
 

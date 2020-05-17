@@ -18,6 +18,6 @@ mod util;
 pub use http;
 
 pub use body::Body;
-pub use error::{Error, Result};
+pub use error::Error;
 pub use request::Request;
 pub use response::Response;

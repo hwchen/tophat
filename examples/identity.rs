@@ -8,12 +8,12 @@ use tophat::{
     server::{
         accept,
         identity::Identity,
+        glitch::Result,
         router::{Router, RouterRequestExt},
         ResponseWriter,
         ResponseWritten,
     },
     Request,
-    Result,
 };
 
 fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {

@@ -11,12 +11,12 @@ use piper::Arc;
 use tophat::{
     server::{
         accept,
+        glitch::Result,
         router::{Router, RouterRequestExt},
         ResponseWriter,
         ResponseWritten,
     },
     Request,
-    Result,
 };
 
 fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {

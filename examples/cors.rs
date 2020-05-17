@@ -12,12 +12,12 @@ use tophat::{
     server::{
         accept,
         cors::{Cors, Validated},
+        glitch::Result,
         router::{Router, RouterRequestExt},
         ResponseWriter,
         ResponseWritten,
     },
     Request,
-    Result,
 };
 
 fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {

@@ -2,6 +2,8 @@ use piper::Sender;
 use http::HeaderMap;
 use std::ops::{Deref, DerefMut};
 
+use crate::Error;
+
 /// A collection of trailing HTTP headers.
 #[derive(Debug)]
 pub struct Trailers {
@@ -52,20 +54,20 @@ impl DerefMut for Trailers {
 /// `Trailers` should be created.
 #[derive(Debug)]
 pub struct TrailersSender {
-    sender: Sender<crate::Result<Trailers>>,
+    sender: Sender<Result<Trailers, Error>>,
 }
 
 impl TrailersSender {
     /// Create a new instance of `TrailersSender`.
     #[doc(hidden)]
-    pub(crate) fn new(sender: Sender<crate::Result<Trailers>>) -> Self {
+    pub(crate) fn new(sender: Sender<Result<Trailers, Error>>) -> Self {
         Self { sender }
     }
 
     /// Send a `Trailer`.
     ///
     /// The channel will be consumed after having sent trailers.
-    pub(crate) async fn send(self, trailers: crate::Result<Trailers>) {
+    pub(crate) async fn send(self, trailers: Result<Trailers, Error>) {
         self.sender.send(trailers).await
     }
 }

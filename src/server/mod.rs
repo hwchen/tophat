@@ -6,6 +6,7 @@
 pub mod cors;
 mod decode;
 mod encode;
+pub mod glitch;
 mod response_writer;
 #[cfg(feature = "router")]
 pub mod router;
@@ -17,20 +18,21 @@ use futures_io::{AsyncRead, AsyncWrite};
 use std::time::Duration;
 
 use crate::body::Body;
-use crate::error::{Error, Result};
+use crate::error::Error;
 use crate::request::Request;
 use crate::response::Response;
 use crate::server::decode::DecodeFail;
 use crate::timeout::{timeout, TimeoutError};
 
 use self::decode::decode;
+pub use self::glitch::{Glitch, Result};
 use self::response_writer::InnerResponse;
 pub use self::response_writer::{ResponseWriter, ResponseWritten};
 
 /// Accept a new incoming Http/1.1 connection
 ///
 /// Automatically supports KeepAlive
-pub async fn accept<RW, F, Fut>(io: RW, endpoint: F) -> Result<()>
+pub async fn accept<RW, F, Fut>(io: RW, endpoint: F) -> std::result::Result<(), Error>
 where
     RW: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
     F: Fn(Request, ResponseWriter<RW>) -> Fut,
@@ -42,7 +44,7 @@ where
 /// Accept a new incoming Http/1.1 connection
 ///
 /// Automatically supports KeepAlive
-pub async fn accept_with_opts<RW, F, Fut>(io: RW, endpoint: F, opts: ServerOpts) -> Result<()>
+pub async fn accept_with_opts<RW, F, Fut>(io: RW, endpoint: F, opts: ServerOpts) -> std::result::Result<(), Error>
 where
     RW: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
     F: Fn(Request, ResponseWriter<RW>) -> Fut,

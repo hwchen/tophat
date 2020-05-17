@@ -5,13 +5,12 @@ use http::{
     status::StatusCode,
     version::Version,
 };
-use thiserror::Error as ThisError;
 
 use crate::body::Body;
-use crate::error::Error;
 use crate::response::Response;
 
 use super::encode::Encoder;
+use super::glitch::Glitch;
 
 pin_project_lite::pin_project! {
     pub(crate) struct InnerResponse {
@@ -66,12 +65,20 @@ impl InnerResponse {
         }
     }
 
-    pub(crate) async fn send<W>(self, writer: W) -> Result<ResponseWritten, ResponseFail>
+    pub(crate) async fn send<W>(self, writer: W) -> Result<ResponseWritten, Glitch>
         where W: AsyncWrite + Clone + Send + Sync + Unpin + 'static,
     {
         let mut encoder = Encoder::encode(self);
         let mut writer = writer;
-        futures_util::io::copy(&mut encoder, &mut writer).await.map_err(ResponseFail::Connection)?;
+        match futures_util::io::copy(&mut encoder, &mut writer).await {
+            Ok(_) => (),
+            Err(err) => {
+                // only log, don't break connection here. If connection is really closed, then the
+                // next decode will send an error that will propagate up to close the conn.
+                log::error!("Error sending response: {}", err);
+            },
+        }
+
         Ok(ResponseWritten {})
     }
 }
@@ -120,7 +127,7 @@ where
 {
     /// send response, and TODO return number of bytes written (I guess this would be a struct for more
     /// complicated sends, like with compression)
-    pub async fn send(self) -> Result<ResponseWritten, Error> {
+    pub async fn send(self) -> Result<ResponseWritten, Glitch> {
         let (parts, body) = self.response.into_parts();
 
         let inner_resp = InnerResponse {
@@ -141,7 +148,7 @@ where
     ///
     /// Internally panics if status code is incorrect (use at your own risk! For something safer,
     /// try `set_status`.
-    pub async fn send_code(self, code: u16) -> Result<ResponseWritten, Error> {
+    pub async fn send_code(self, code: u16) -> Result<ResponseWritten, Glitch> {
         let mut this = self;
         this.set_code(code);
 
@@ -189,7 +196,7 @@ where
     /// ```rust
     /// # use futures_util::io::{AsyncRead, AsyncWrite};
     /// # use std::error::Error;
-    /// # use tophat::{Body, Result, Request, Response, server::{ResponseWriter, ResponseWritten}};
+    /// # use tophat::{Body, Request, Response, server::{glitch::Result, ResponseWriter, ResponseWritten}};
     /// async fn handler<W>(req: Request, mut resp_wtr: ResponseWriter<W>) -> Result<ResponseWritten>
     ///     where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
     /// {
@@ -242,18 +249,3 @@ where
 // Currently an empty struct, not a unit struct, to make it impossible for user to create
 // themselves.
 pub struct ResponseWritten {}
-
-#[derive(ThisError, Debug)]
-pub(crate) enum ResponseFail {
-    #[error("Failure sending response: {0}")]
-    Connection(std::io::Error),
-}
-
-impl From<ResponseFail> for Error {
-    fn from(respf: ResponseFail) -> Error {
-        match respf {
-            ResponseFail::Connection(io_err) => Error::ResponseSend(io_err),
-        }
-    }
-}
-
