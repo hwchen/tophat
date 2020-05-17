@@ -6,7 +6,7 @@
 pub mod cors;
 mod decode;
 mod encode;
-mod response;
+mod response_writer;
 #[cfg(feature = "router")]
 pub mod router;
 #[cfg(feature = "identity")]
@@ -23,8 +23,8 @@ use crate::response::Response;
 use crate::timeout::{timeout, TimeoutError};
 
 use self::decode::decode;
-use self::response::InnerResponse;
-pub use self::response::{ResponseWriter, ResponseWritten};
+use self::response_writer::InnerResponse;
+pub use self::response_writer::{ResponseWriter, ResponseWritten};
 
 /// Accept a new incoming Http/1.1 connection
 ///

@@ -13,7 +13,7 @@ use std::task::{Context, Poll};
 
 use crate::chunked::ChunkedEncoder;
 
-use super::response::InnerResponse;
+use super::response_writer::InnerResponse;
 
 pub(crate) struct Encoder {
     resp: InnerResponse,

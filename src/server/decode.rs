@@ -14,7 +14,7 @@ use crate::Request;
 use crate::body::Body;
 use crate::chunked::ChunkedDecoder;
 
-use super::response::InnerResponse;
+use super::response_writer::InnerResponse;
 
 const LF: u8 = b'\n';
 
