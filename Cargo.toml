@@ -10,6 +10,9 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/hwchen/tophat"
 readme = "README.md"
 
+[package.metadata.docs.rs]
+all-features = true
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
@@ -37,9 +40,14 @@ jsonwebtoken = { version = "7.1.0", optional = true }
 serde = { version = "1.0.110", features = ["derive"], optional = true }
 time = { version = "0.2.16", default_features = false, optional = true }
 
+# for cors (maybe use elsewhere?)
+headers = { version = "0.3.2", optional = true }
+
 [features]
 # Nothing enabled by default
 default = []
+
+cors = ["headers"]
 
 router = [
     "path-tree",
@@ -71,5 +79,6 @@ required-features = ["identity", "router"]
 name = "middleware"
 required-features = ["router"]
 
-[package.metadata.docs.rs]
-all-features = true
+[[example]]
+name = "cors"
+required-features = ["router", "cors"]

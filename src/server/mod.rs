@@ -15,6 +15,8 @@
 //!   - from buffer (`Vec<u8>` or `String` or `&str`): fixed body
 //! - In the future, there may be some convenience methods for constructing common responses.
 
+#[cfg(feature = "router")]
+pub mod cors;
 mod decode;
 mod encode;
 mod response;
