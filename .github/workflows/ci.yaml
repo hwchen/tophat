@@ -57,6 +57,12 @@ jobs:
         with:
           command: test
 
+      - name: cargo test (anyhow feature)
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --features=anyhow
+
   test-nightly:
     runs-on: ${{ matrix.os }}
     strategy:
@@ -84,6 +90,12 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
+
+      - name: cargo test (anyhow feature)
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --features=anyhow
 
 #  check-docs:
 #    name: Docs
