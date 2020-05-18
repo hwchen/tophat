@@ -57,3 +57,18 @@ Designed using language constructs to build your app, instead of creating anothe
 And instead of services for backend (like timeout and compression) just use async io traits and streams. Just need to provide hooks for them.
 
 Also, not trying to make easy things appear easy, but making hard things manageable.
+
+# Error handling
+While trying to implement verbose HTTP errors for anyhow for glitch, I realized that using `anyhow::Context` results in a `anyhow::Error` which cannot be converted to `Glitch` because it doesn't implement `std::error::Error` (for coherence reasons).
+
+Since I only want:
+- the ability to add context to errors
+- the ability to read the underlying errors
+
+That means I don't really need something like anyhow; it is powerful, not just because you can convert any error, but because it holds those error's info. Since Glitch will never be doing any more processing of the errors it's converted from (it gets turned directly into a response), it's fine to not have the power of anyhow.
+
+The solution is to simply remove anyhow and convert all errors to Strings in Glitch.
+
+The context part is also pretty easy to add. Separately.
+
+In the future, if users want to use anyhow or write their own framework/router, they can just have their own custom error that will convert to Glitch. (Perhaps they can do something impl Response in Actix?).
