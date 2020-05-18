@@ -28,6 +28,7 @@ use http::{
     status::StatusCode,
     version::Version,
 };
+use std::fmt::Display;
 
 use crate::server::InnerResponse;
 
@@ -41,37 +42,33 @@ pub struct Glitch {
     pub(crate) version: Option<Version>,
     pub(crate) message: Option<String>,
 
-    // This is an Option in case somebody has anyhow feature chosen, but just wants to
-    // directly make a Glitch without converting from an error using `From`.
-    #[cfg(feature = "anyhow")]
-    pub(crate) anyhow: Option<anyhow_1::Error>,
+    // keep things simple, this is just response so no need to hold an actual error. Just print the
+    // error string.
+    pub(crate) trace: Option<String>,
 }
 
-#[cfg(feature = "anyhow")]
 impl<E> From<E> for Glitch
 where
     E: std::error::Error + Send + Sync + 'static,
 {
     fn from(error: E) -> Self {
-        Self::new_with_anyhow(error)
+        Self::new_with_err(error)
     }
 }
 
 impl Glitch {
-    #[allow(dead_code)] // only used by Cors so far
+    #[allow(dead_code)] // this only gets used by cors
     pub(crate) fn new() -> Self {
         Self {
             status: None,
             headers: None,
             version: None,
             message: None,
-            #[cfg(feature = "anyhow")]
-            anyhow: None,
+            trace: None,
         }
     }
 
-    #[cfg(feature = "anyhow")]
-    pub(crate) fn new_with_anyhow<E>(error: E) -> Self
+    pub(crate) fn new_with_err<E>(error: E) -> Self
     where
         E: std::error::Error + Send + Sync + 'static,
     {
@@ -80,28 +77,44 @@ impl Glitch {
             headers: None,
             version: None,
             message: None,
-            anyhow: Some(error.into()),
+            trace: Some(error.to_string()),
         }
     }
 
-    pub(crate) fn into_inner_response(self) -> InnerResponse {
-        // TODO only return anyhow error in body if some debug flag is turned on
-        //#[cfg(feature = "anyhow")]
-        //let body = if let Some(message) = self.message {
-        //    message.into()
-        //} else if let Some(any_err) = self.anyhow {
-        //    any_err.to_string().into()
-        //} else {
-        //    Body::empty()
-        //};
+    pub(crate) fn new_with_err_context<E, C>(error: E, context: C) -> Self
+    where
+        E: std::error::Error + Send + Sync + 'static,
+        C: Display + Send + Sync + 'static,
+    {
+        Self {
+            status: None,
+            headers: None,
+            version: None,
+            message: Some(context.to_string()),
+            trace: Some(error.to_string()),
+        }
+    }
 
-        let body =  self.message.unwrap_or_else(|| "".to_string()).into();
+    pub(crate) fn into_inner_response(self, verbose: bool) -> InnerResponse {
+        // Always start with user-created message
+        let mut msg: String =  self.message.unwrap_or_else(|| "".to_string());
+
+        if verbose {
+            // must be a less awkward way to do this.
+            if let Some(trace) = self.trace {
+                if msg != "" {
+                    msg = msg + "\n" + &trace;
+                } else {
+                    msg = trace;
+                }
+            }
+        }
 
         InnerResponse {
             status: self.status.unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
             headers: self.headers.unwrap_or_else(HeaderMap::new),
             version: self.version.unwrap_or(Version::HTTP_11),
-            body,
+            body: msg.into(),
         }
     }
 
@@ -111,8 +124,7 @@ impl Glitch {
             headers: None,
             version: None,
             message: None,
-            #[cfg(feature = "anyhow")]
-            anyhow: None,
+            trace: None,
         }
     }
 
@@ -122,8 +134,51 @@ impl Glitch {
             headers: None,
             version: None,
             message: None,
-            #[cfg(feature = "anyhow")]
-            anyhow: None,
+            trace: None,
         }
+    }
+}
+
+// Context trait. Will set the `message` field in a glitch
+// Design from anyhow
+
+mod private {
+    pub trait Sealed {}
+
+    impl<T, E> Sealed for std::result::Result<T, E>
+    where
+        E: std::error::Error + Send + Sync + 'static
+    {}
+}
+
+
+pub trait Context<T, E>: private::Sealed {
+    fn context<C>(self, context: C) -> std::result::Result<T, Glitch>
+    where
+        C: Display + Send + Sync + 'static;
+
+    fn with_context<C, F>(self, f: F) -> std::result::Result<T, Glitch>
+    where
+        C: Display + Send + Sync + 'static,
+        F: FnOnce() -> C;
+}
+
+impl<T, E> Context<T, E> for std::result::Result<T, E>
+where
+    E: std::error::Error + Send + Sync + 'static,
+{
+    fn context<C>(self, context: C) -> std::result::Result<T, Glitch>
+    where
+        C: Display + Send + Sync + 'static,
+    {
+        self.map_err(|error| Glitch::new_with_err_context(error, context))
+    }
+
+    fn with_context<C, F>(self, f: F) -> std::result::Result<T, Glitch>
+    where
+        C: Display + Send + Sync + 'static,
+        F: FnOnce() -> C,
+    {
+        self.map_err(|error| Glitch::new_with_err_context(error, f()))
     }
 }
