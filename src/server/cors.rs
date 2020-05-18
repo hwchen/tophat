@@ -46,7 +46,6 @@ pub struct CorsBuilder {
     /// default false
     pub credentials: bool,
     /// For preflight only, allowed headers
-    /// TODO check if it's ok to send empty value for this header.
     pub allowed_headers: HashSet<HeaderName>,
     /// For preflight and simple, tell client what headers it can access
     pub exposed_headers: HashSet<HeaderName>,
