@@ -58,6 +58,18 @@ where
 }
 
 impl Glitch {
+    #[allow(dead_code)] // only used by Cors so far
+    pub(crate) fn new() -> Self {
+        Self {
+            status: None,
+            headers: None,
+            version: None,
+            message: None,
+            #[cfg(feature = "anyhow")]
+            anyhow: None,
+        }
+    }
+
     #[cfg(feature = "anyhow")]
     pub(crate) fn new_with_anyhow<E>(error: E) -> Self
     where

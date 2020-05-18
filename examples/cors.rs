@@ -11,7 +11,7 @@ use piper::Arc;
 use tophat::{
     server::{
         accept,
-        cors::{Cors, Validated},
+        cors::Cors,
         glitch::Result,
         router::{Router, RouterRequestExt},
         ResponseWriter,
@@ -26,6 +26,7 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let cors = Cors::new()
         .allow_origin("http://example.com")
         .allow_methods(vec!["GET", "POST", "DELETE"])
+        .allow_header("content-type")
         .finish();
 
     let router = Router::build()
@@ -45,13 +46,7 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 
             let task = Task::spawn(async move {
                 let serve = accept(stream, |req, mut resp_wtr| async {
-                    // TODO better early return handling for middlware?
-                    match cors.validate(&req, &mut resp_wtr) {
-                        Validated::Preflight | Validated::Invalid => {
-                            return resp_wtr.send().await;
-                        },
-                        Validated::Simple | Validated::NotCors => (),
-                    }
+                    cors.validate(&req, &mut resp_wtr)?;
 
                     // back to routing here
                     let res = router.route(req, resp_wtr).await;

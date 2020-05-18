@@ -29,17 +29,24 @@
 
 use futures_util::io::{AsyncRead, AsyncWrite};
 use headers::{AccessControlAllowHeaders, AccessControlAllowMethods, AccessControlExposeHeaders, HeaderMapExt, Origin};
-use http::{header::{self, HeaderName, HeaderValue}, Method};
+use http::{header::{self, HeaderMap, HeaderName, HeaderValue}, Method, StatusCode};
 use std::collections::HashSet;
 use std::convert::TryFrom;
 
-use crate::{server::ResponseWriter, Request};
+use crate::{
+    server::{
+        glitch::{Glitch, Result},
+        ResponseWriter
+    },
+    Request
+};
 
 pub struct CorsBuilder {
     /// For preflight and simple, whether to add the access-control-allow-credentials header
     /// default false
     pub credentials: bool,
     /// For preflight only, allowed headers
+    /// TODO check if it's ok to send empty value for this header.
     pub allowed_headers: HashSet<HeaderName>,
     /// For preflight and simple, tell client what headers it can access
     pub exposed_headers: HashSet<HeaderName>,
@@ -272,7 +279,11 @@ impl Cors {
 
     // `Options` method differentiates preflight from simple. Does not check for correctness of a
     // simple request.
-    pub fn validate<W>(&self, req: &Request, resp_wtr: &mut ResponseWriter<W>) -> Validated
+    //
+    // The design seems a little weird in terms of error handling; basically
+    // - Ok means continuing to endpoint. This is for both simple cors and not cors
+    // - Err means short-circuit. This is for preflight and invalid
+    pub fn validate<W>(&self, req: &Request, resp_wtr: &mut ResponseWriter<W>) -> Result<()>
         where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
     {
         let req_method = req.method();
@@ -282,68 +293,79 @@ impl Cors {
             (&Method::OPTIONS, Some(origin)) => {
                 // Preflight checks
                 if !self.is_origin_allowed(origin) {
-                    return Validated::Invalid;
-                    // TODO
+                    return Err(Glitch::bad_request());
+                    // TODO error message?
                     //Err(Forbidden::OriginNotAllowed);
                 }
 
-                let headers = resp_wtr.response_mut().headers_mut();
+                let headers = req.headers();
 
                 if let Some(req_method) = headers.get(header::ACCESS_CONTROL_REQUEST_METHOD) {
                     if !self.is_method_allowed(req_method) {
-                        return Validated::Invalid;
-                        // TODO error handling
+                        return Err(Glitch::bad_request());
+                        // TODO error message?
                         //Err(Forbidden::MethodNotAllowed);
                     }
                 } else {
-                    return Validated::Invalid;
-                    // TODO error handling
+                println!("hit");
+                    return Err(Glitch::bad_request());
+                    // TODO error message?
                     // return Err(Forbidden::MethodNotAllowed);
                 }
 
                 if let Some(req_headers) = headers.get(header::ACCESS_CONTROL_REQUEST_HEADERS) {
-                    // TODO error handling
+                    // TODO error message?
                     //let headers = req.headers()
                     //    .to_str()
                     //    .map_err(|_| Forbidden::HeaderNotAllowed)?;
                     let headers = match req_headers.to_str() {
                         Ok(h) => h,
-                        Err(_) => return Validated::Invalid,
+                        Err(_) => return Err(Glitch::bad_request()),
                     };
                     for header in headers.split(',') {
                         if !self.is_header_allowed(header) {
-                            return Validated::Invalid;
-                            // TODO error handling
+                            return Err(Glitch::bad_request());
+                            // TODO error message?
                             //return Err(Forbidden::HeaderNotAllowed);
                         }
                     }
                 }
 
                 // If all checks successful, continue with headers for resp.
+                //
+                // NOTE it looks kind of weird, but a Glitch is used to have an early return for
+                // preflight.
+                //
                 // set headers
-                self.append_preflight_headers(resp_wtr);
+                let mut resp = Glitch::new();
+                let mut headers = HeaderMap::new();
+                self.append_preflight_headers(&mut headers);
                 // set allowed-origin header
-                resp_wtr.insert_header(header::ACCESS_CONTROL_ALLOW_ORIGIN, origin.clone());
+                headers.insert(header::ACCESS_CONTROL_ALLOW_ORIGIN, origin.clone());
 
-                Validated::Preflight
+                resp.status = Some(StatusCode::OK);
+                resp.headers = Some(headers);
+
+                Err(resp)
             },
             (_, Some(origin)) => {
                 // Simple
                 if self.is_origin_allowed(origin) {
                     // set common headers
-                    self.append_common_headers(resp_wtr);
+                    let mut headers = resp_wtr.response_mut().headers_mut();
+                    self.append_common_headers(&mut headers);
                     // set allowed-origin header
                     resp_wtr.insert_header(header::ACCESS_CONTROL_ALLOW_ORIGIN, origin.clone());
 
-                    return Validated::Simple;
+                    return Ok(());
                 }
 
                 // If origin is not allowed
-                Validated::Invalid
+                Err(Glitch::bad_request())
             },
             (_, _) => {
                 // All other requests are not Cors
-                Validated::NotCors
+                Ok(())
             },
         }
     }
@@ -368,12 +390,8 @@ impl Cors {
         }
     }
 
-    fn append_preflight_headers<W>(&self, resp_wtr: &mut ResponseWriter<W>)
-        where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
-    {
-        self.append_common_headers(resp_wtr);
-
-        let headers = resp_wtr.response_mut().headers_mut();
+    fn append_preflight_headers(&self, headers: &mut HeaderMap) {
+        self.append_common_headers(headers);
 
         headers.typed_insert(self.allowed_headers.clone());
         headers.typed_insert(self.methods.clone());
@@ -383,11 +401,7 @@ impl Cors {
         }
     }
 
-    fn append_common_headers<W>(&self, resp_wtr: &mut ResponseWriter<W>)
-        where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
-    {
-        let headers = resp_wtr.response_mut().headers_mut();
-
+    fn append_common_headers(&self, headers: &mut HeaderMap) {
         if self.credentials {
             headers.insert(
                 header::ACCESS_CONTROL_ALLOW_CREDENTIALS,
