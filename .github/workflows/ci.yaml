@@ -89,12 +89,6 @@ jobs:
           # for now, all features are additive
           args: --all-features
 
-      - name: cargo test (anyhow feature)
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --features=anyhow
-
 #  check-docs:
 #    name: Docs
 #    runs-on: ${{ matrix.os }}
