@@ -207,7 +207,7 @@ pub(crate) fn fail_to_crate_err(fail: DecodeFail) -> Option<Error> {
     debug!("Decode crate-level error: {} ", fail);
 
     match fail {
-        ConnectionLost(err) => Some(Error::ConnectionLost(err)),
+        //ConnectionLost(err) => Some(Error::ConnectionLost(err)),
         HttpUnsupportedTransferEncoding => Some(Error::ConnectionClosedUnsupportedTransferEncoding),
         _ => None,
     }

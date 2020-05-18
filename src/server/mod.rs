@@ -53,6 +53,9 @@ where
     // All errors should be bubbled up to this fn to handle, either in logs or in responses.
 
     loop {
+        // If connection is lost but I don't bubble up the error, then this fn still exits, no
+        // worries about it hanging around.
+
         // decode to Request
         let req_fut = decode(io.clone());
 

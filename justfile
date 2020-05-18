@@ -8,7 +8,7 @@ test-anyhow:
     cargo watch -x 'test --features=anyhow -- --nocapture'
 
 bench:
-    cargo watch -x 'run --release --example bench'
+    RUST_LOG=info cargo watch -x 'run --release --example bench'
 
 basic:
     RUST_LOG=info cargo watch -x 'run --release --example basic'
