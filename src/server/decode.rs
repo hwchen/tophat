@@ -95,7 +95,7 @@ where
             }
 
             is_te = true;
-            is_chunked = header.value == b"chunked"; // TODO make sure there's no variation in chunked
+            is_chunked = std::str::from_utf8(header.value).unwrap().trim().eq_ignore_ascii_case("chunked");
         } else if header.name == header::HOST {
             has_host = true;
         }
