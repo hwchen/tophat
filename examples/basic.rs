@@ -22,7 +22,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     println!("{:?}", req.headers().get(header::CONTENT_LENGTH));
                     println!("{:?}", req.headers().get(header::HOST));
 
-                    let req_body = req.into_body().into_string().await.unwrap();
+                    let req_body = req.into_body().into_string().await?;
                     let resp_body = format!("Hello, {}!", req_body);
                     resp_wtr.set_body(resp_body.into());
 
