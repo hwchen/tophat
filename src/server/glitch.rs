@@ -56,9 +56,20 @@ where
     }
 }
 
+impl std::default::Default for Glitch {
+    fn default() -> Self {
+        Self {
+            status: None,
+            headers: None,
+            version: None,
+            message: None,
+            trace: None,
+        }
+    }
+}
+
 impl Glitch {
-    #[allow(dead_code)] // this only gets used by cors
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             status: None,
             headers: None,
@@ -116,6 +127,14 @@ impl Glitch {
             version: self.version.unwrap_or(Version::HTTP_11),
             body: msg.into(),
         }
+    }
+
+    pub fn status(&mut self, status: http::StatusCode) {
+        self.status = Some(status);
+    }
+
+    pub fn message(&mut self, message: &str) {
+        self.message = Some(message.into());
     }
 
     pub fn bad_request() -> Self {
@@ -182,3 +201,48 @@ where
         self.map_err(|error| Glitch::new_with_err_context(error, f()))
     }
 }
+
+#[macro_export]
+macro_rules! glitch (
+    () => {
+        Glitch::internal_server_error();
+    };
+    ($code:expr) => {
+        {
+            let mut g= Glitch::new();
+            g.status($code);
+            g
+        }
+    };
+    ($code:expr, $context:expr) => {
+        {
+            let mut g= Glitch::new();
+            g.status($code);
+            g.message($context);
+            g
+        }
+    };
+);
+
+#[macro_export]
+/// This one panics!
+macro_rules! glitch_code (
+    () => {
+        Glitch::internal_server_error();
+    };
+    ($code:expr) => {
+        {
+            let mut g= Glitch::new();
+            g.status(StatusCode::from_u16($code).unwrap());
+            g
+        }
+    };
+    ($code:expr, $context:expr) => {
+        {
+            let mut g= Glitch::new();
+            g.status(StatusCode::from_u16($code).unwrap());
+            g.message($context);
+            g
+        }
+    };
+);
