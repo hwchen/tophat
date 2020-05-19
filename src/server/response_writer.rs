@@ -64,7 +64,7 @@ impl InnerResponse {
             Ok(_) => (),
             Err(err) => {
                 // only log, don't break connection here. If connection is really closed, then the
-                // next decode will send an error that will propagate up to close the conn.
+                // next decode will break the loop receiving requests
                 log::error!("Error sending response: {}", err);
             },
         }
