@@ -81,6 +81,26 @@ fn test_request_glitch_with_context() {
         testclient.assert();
     });
 
+    // context on Option
+    smol::block_on(async {
+        let testclient = TestClient::new(
+            "GET /foo/bar HTTP/1.1\r\nHost: example.org\r\n\r\n",
+            "HTTP/1.1 500 Internal Server Error\r\ncontent-length: 12\r\n\r\ncustom error",
+        );
+
+        accept(testclient.clone(), |_req, resp_wtr| async move {
+            let usr = None;
+            usr.context("custom error")?;
+            let done = resp_wtr.send().await.unwrap();
+
+            Ok(done)
+        })
+        .await
+        .unwrap();
+
+        testclient.assert();
+    });
+
     // manual
     smol::block_on(async {
         let testclient = TestClient::new(

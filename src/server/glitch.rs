@@ -28,6 +28,7 @@ use http::{
     status::StatusCode,
     version::Version,
 };
+use std::convert::Infallible;
 use std::fmt::Display;
 
 use crate::server::InnerResponse;
@@ -89,6 +90,19 @@ impl Glitch {
             version: None,
             message: None,
             trace: Some(error.to_string()),
+        }
+    }
+
+    pub(crate) fn new_with_context<C>(context: C) -> Self
+    where
+        C: Display + Send + Sync + 'static,
+    {
+        Self {
+            status: None,
+            headers: None,
+            version: None,
+            message: Some(context.to_string()),
+            trace: None,
         }
     }
 
@@ -168,6 +182,8 @@ mod private {
     where
         E: std::error::Error + Send + Sync + 'static
     {}
+
+    impl<T> Sealed for Option<T> {}
 }
 
 
@@ -199,6 +215,23 @@ where
         F: FnOnce() -> C,
     {
         self.map_err(|error| Glitch::new_with_err_context(error, f()))
+    }
+}
+
+impl<T> Context<T, Infallible> for Option<T> {
+    fn context<C>(self, context: C) -> std::result::Result<T, Glitch>
+    where
+        C: Display + Send + Sync + 'static,
+    {
+        self.ok_or_else(|| Glitch::new_with_context(context))
+    }
+
+    fn with_context<C, F>(self, f: F) -> std::result::Result<T, Glitch>
+    where
+        C: Display + Send + Sync + 'static,
+        F: FnOnce() -> C,
+    {
+        self.ok_or_else(|| Glitch::new_with_context(f()))
     }
 }
 
