@@ -72,3 +72,8 @@ The solution is to simply remove anyhow and convert all errors to Strings in Gli
 The context part is also pretty easy to add. Separately.
 
 In the future, if users want to use anyhow or write their own framework/router, they can just have their own custom error that will convert to Glitch. (Perhaps they can do something impl Response in Actix?).
+
+## More on error handling
+I like the idea that Rust is supposed to handle errors on-the-spot, because error handling is not lesser than the "happy path". This means that pushing all of your errors to be handled by a custom catch is not as good as trying to handle as much as possible on the spot.
+
+There are limits, which is why anyhow is a thing.
