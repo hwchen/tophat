@@ -68,7 +68,7 @@ impl Encoder {
             std::io::Write::write_fmt(&mut self.head_buf, format_args!("transfer-encoding: chunked\r\n"))?;
         }
         if let Some(date) = date {
-            std::io::Write::write_fmt(&mut self.head_buf, format_args!("date: {}\r\n", date)).unwrap();
+            std::io::Write::write_fmt(&mut self.head_buf, format_args!("date: {}\r\n", date))?;
         }
         for (header, value) in headers {
             // TODO check this: shouldn't head be &HeaderName, not Option<HeaderName>?
@@ -123,7 +123,7 @@ impl Encoder {
             return Poll::Ready(Ok(self.bytes_read));
         }
 
-        let content_length = self.content_length.unwrap();
+        let content_length = self.content_length.expect("content_length.is_some() checked before entering method");
 
         // Copy to to buf the shorter of (remaining body + any previous reads) or buf
         let upper_limit = std::cmp::min(
