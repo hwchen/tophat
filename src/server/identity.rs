@@ -5,6 +5,7 @@
 //! The service is kept in the global state (Data in the router)
 //!
 //! Only manually verified/tested, use at own risk.
+//! Currently has several `unwrap` which may panic.
 //!
 //! Cookies only, using jwt tokens. No custom claims.
 //!
