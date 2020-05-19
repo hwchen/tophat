@@ -71,8 +71,10 @@ impl Encoder {
             std::io::Write::write_fmt(&mut self.head_buf, format_args!("date: {}\r\n", date))?;
         }
         for (header, value) in headers {
-            // TODO check this: shouldn't head be &HeaderName, not Option<HeaderName>?
-            std::io::Write::write_fmt(&mut self.head_buf, format_args!("{}: {}\r\n", header, value.to_str().unwrap()))?;
+            // write broken up, because value may contain opaque bytes.
+            std::io::Write::write_fmt(&mut self.head_buf, format_args!("{}: ", header))?;
+            std::io::Write::write(&mut self.head_buf, value.as_bytes())?;
+            std::io::Write::write(&mut self.head_buf, b"\r\n")?;
         }
         std::io::Write::write_fmt(&mut self.head_buf, format_args!("\r\n"))?;
 
