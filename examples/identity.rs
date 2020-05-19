@@ -19,7 +19,7 @@ use tophat::{
 fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     pretty_env_logger::init();
 
-    let identity = Identity::new("secret_server_key")
+    let identity = Identity::build("secret_server_key")
         .cookie_name("jwt")
         .cookie_secure(false) // necessary because example not https
         .issuer("tophat")

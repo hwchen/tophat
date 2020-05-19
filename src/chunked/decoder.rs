@@ -1,5 +1,6 @@
 // chunked decoder module is largely from async-h1, with modifications to use http lib
 #![allow(clippy::len_zero)]
+#![allow(clippy::reversed_empty_ranges)]
 
 use http::header::{HeaderName, HeaderValue};
 use std::fmt;

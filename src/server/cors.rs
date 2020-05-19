@@ -75,7 +75,7 @@ impl CorsBuilder {
     {
         let method = match TryFrom::try_from(method) {
             Ok(m) => m,
-            Err(_) => panic!("illegal Method"),
+            _ => panic!("illegal Method"),
         };
         self.methods.insert(method);
         self
@@ -93,7 +93,7 @@ impl CorsBuilder {
     {
         let iter = methods.into_iter().map(|m| match TryFrom::try_from(m) {
             Ok(m) => m,
-            Err(_) => panic!("illegal Method"),
+            _ => panic!("illegal Method"),
         });
         self.methods.extend(iter);
         self
@@ -110,7 +110,7 @@ impl CorsBuilder {
     {
         let header = match TryFrom::try_from(header) {
             Ok(m) => m,
-            Err(_) => panic!("illegal Header"),
+            _ => panic!("illegal Header"),
         };
         self.allowed_headers.insert(header);
         self
@@ -128,7 +128,7 @@ impl CorsBuilder {
     {
         let iter = headers.into_iter().map(|h| match TryFrom::try_from(h) {
             Ok(h) => h,
-            Err(_) => panic!("illegal Header"),
+            _ => panic!("illegal Header"),
         });
         self.allowed_headers.extend(iter);
         self
@@ -145,7 +145,7 @@ impl CorsBuilder {
     {
         let header = match TryFrom::try_from(header) {
             Ok(m) => m,
-            Err(_) => panic!("illegal Header"),
+            _ => panic!("illegal Header"),
         };
         self.exposed_headers.insert(header);
         self
@@ -163,7 +163,7 @@ impl CorsBuilder {
     {
         let iter = headers.into_iter().map(|h| match TryFrom::try_from(h) {
             Ok(h) => h,
-            Err(_) => panic!("illegal Header"),
+            _ => panic!("illegal Header"),
         });
         self.exposed_headers.extend(iter);
         self
@@ -265,7 +265,7 @@ pub struct Cors {
 }
 
 impl Cors {
-    pub fn new() -> CorsBuilder {
+    pub fn build() -> CorsBuilder {
         CorsBuilder {
             credentials: false,
             allowed_headers:HashSet::new(),

@@ -32,4 +32,4 @@ identity-logout:
     curl -v --cookie .cookie --cookie-jar .cookie --location localhost:9999/logout
 
 clippy:
-    cargo watch -x '+nightly clippy -- -D warnings -Z unstable-options'
+    cargo watch -x '+nightly clippy --all-features -- -D warnings -Z unstable-options'

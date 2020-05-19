@@ -23,7 +23,7 @@ use tophat::{
 fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     pretty_env_logger::init();
 
-    let cors = Cors::new()
+    let cors = Cors::build()
         .allow_origin("http://example.com")
         .allow_methods(vec!["GET", "POST", "DELETE"])
         .allow_header("content-type")

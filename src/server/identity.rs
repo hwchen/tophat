@@ -55,7 +55,7 @@ impl Identity {
     /// Create a new instance.
     ///
     /// The `server_key` is used for signing and validating the jwt token.
-    pub fn new(server_key: &str) -> IdentityBuilder {
+    pub fn build(server_key: &str) -> IdentityBuilder {
         IdentityBuilder::new(server_key)
     }
 
@@ -128,7 +128,7 @@ impl Identity {
         };
 
         encode(&Header::default(), &claims, &EncodingKey::from_secret(self.server_key.as_bytes()))
-            .map_err(|err| IdentityFail::Encode(err))
+            .map_err(IdentityFail::Encode)
     }
 }
 
