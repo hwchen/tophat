@@ -1,6 +1,6 @@
 [package]
 name = "tophat"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Walther Chen <walther.chen@gmail.com>"]
 description = "A small, pragmatic, and flexible async http server"
 keywords = ["http"]
