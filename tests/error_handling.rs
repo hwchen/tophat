@@ -6,7 +6,7 @@ use tophat::{
     http::StatusCode,
     server::{
         accept,
-        glitch::{Context, Glitch},
+        glitch::{Glitch, GlitchExt},
     },
 };
 
@@ -14,6 +14,8 @@ use test_client::TestClient;
 
 const RESP_400: &str = "HTTP/1.1 400 Bad Request\r\ncontent-length: 0\r\n\r\n";
 const RESP_500: &str = "HTTP/1.1 500 Internal Server Error\r\ncontent-length: 0\r\n\r\n";
+const S_400: StatusCode = StatusCode::BAD_REQUEST;
+const S_500: StatusCode = StatusCode::INTERNAL_SERVER_ERROR;
 
 #[test]
 fn test_request_manually_create_glitch() {
@@ -61,6 +63,25 @@ fn test_request_glitch_with_context() {
         testclient.assert();
     });
 
+    // context no message
+    smol::block_on(async {
+        let testclient = TestClient::new(
+            "GET /foo/bar HTTP/1.1\r\nHost: example.org\r\n\r\n",
+            RESP_500,
+        );
+
+        accept(testclient.clone(), |_req, resp_wtr| async move {
+            "one".parse::<usize>().glitch(S_500)?;
+            let done = resp_wtr.send().await.unwrap();
+
+            Ok(done)
+        })
+        .await
+        .unwrap();
+
+        testclient.assert();
+    });
+
     // context
     smol::block_on(async {
         let testclient = TestClient::new(
@@ -70,7 +91,7 @@ fn test_request_glitch_with_context() {
 
         accept(testclient.clone(), |_req, resp_wtr| async move {
             "one".parse::<usize>()
-                .context("custom error")?;
+                .glitch_ctx(S_500, "custom error")?;
             let done = resp_wtr.send().await.unwrap();
 
             Ok(done)
@@ -85,12 +106,12 @@ fn test_request_glitch_with_context() {
     smol::block_on(async {
         let testclient = TestClient::new(
             "GET /foo/bar HTTP/1.1\r\nHost: example.org\r\n\r\n",
-            "HTTP/1.1 500 Internal Server Error\r\ncontent-length: 12\r\n\r\ncustom error",
+            "HTTP/1.1 400 Bad Request\r\ncontent-length: 12\r\n\r\ncustom error",
         );
 
         accept(testclient.clone(), |_req, resp_wtr| async move {
             let usr = None;
-            usr.context("custom error")?;
+            usr.glitch_ctx(S_400, "custom error")?;
             let done = resp_wtr.send().await.unwrap();
 
             Ok(done)

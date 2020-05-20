@@ -93,12 +93,12 @@ impl Glitch {
         }
     }
 
-    pub(crate) fn new_with_context<C>(context: C) -> Self
+    pub(crate) fn new_with_status_context<C>(status: StatusCode, context: C) -> Self
     where
         C: Display + Send + Sync + 'static,
     {
         Self {
-            status: None,
+            status: Some(status),
             headers: None,
             version: None,
             message: Some(context.to_string()),
@@ -106,13 +106,13 @@ impl Glitch {
         }
     }
 
-    pub(crate) fn new_with_err_context<E, C>(error: E, context: C) -> Self
+    pub(crate) fn new_with_status_err_context<E, C>(status: StatusCode, error: E, context: C) -> Self
     where
         E: std::error::Error + Send + Sync + 'static,
         C: Display + Send + Sync + 'static,
     {
         Self {
-            status: None,
+            status: Some(status),
             headers: None,
             version: None,
             message: Some(context.to_string()),
@@ -187,51 +187,69 @@ mod private {
 }
 
 
-pub trait Context<T, E>: private::Sealed {
-    fn context<C>(self, context: C) -> std::result::Result<T, Glitch>
+pub trait GlitchExt<T, E>: private::Sealed {
+    fn glitch(self, status: StatusCode) -> std::result::Result<T, Glitch>;
+
+    fn glitch_ctx<C>(self, status: StatusCode, ctx: C) -> std::result::Result<T, Glitch>
     where
         C: Display + Send + Sync + 'static;
 
-    fn with_context<C, F>(self, f: F) -> std::result::Result<T, Glitch>
+    fn glitch_with_ctx<C, F>(self, status: StatusCode, f: F) -> std::result::Result<T, Glitch>
     where
         C: Display + Send + Sync + 'static,
         F: FnOnce() -> C;
 }
 
-impl<T, E> Context<T, E> for std::result::Result<T, E>
+impl<T, E> GlitchExt<T, E> for std::result::Result<T, E>
 where
     E: std::error::Error + Send + Sync + 'static,
 {
-    fn context<C>(self, context: C) -> std::result::Result<T, Glitch>
+    fn glitch(self, status: StatusCode) -> std::result::Result<T, Glitch> {
+        self.map_err(|_| {
+            let mut g = Glitch::new();
+            g.status(status);
+            g
+        })
+    }
+
+    fn glitch_ctx<C>(self, status: StatusCode, context: C) -> std::result::Result<T, Glitch>
     where
         C: Display + Send + Sync + 'static,
     {
-        self.map_err(|error| Glitch::new_with_err_context(error, context))
+        self.map_err(|error| Glitch::new_with_status_err_context(status, error, context))
     }
 
-    fn with_context<C, F>(self, f: F) -> std::result::Result<T, Glitch>
+    fn glitch_with_ctx<C, F>(self, status: StatusCode, f: F) -> std::result::Result<T, Glitch>
     where
         C: Display + Send + Sync + 'static,
         F: FnOnce() -> C,
     {
-        self.map_err(|error| Glitch::new_with_err_context(error, f()))
+        self.map_err(|error| Glitch::new_with_status_err_context(status, error, f()))
     }
 }
 
-impl<T> Context<T, Infallible> for Option<T> {
-    fn context<C>(self, context: C) -> std::result::Result<T, Glitch>
+impl<T> GlitchExt<T, Infallible> for Option<T> {
+    fn glitch(self, status: StatusCode) -> std::result::Result<T, Glitch> {
+        self.ok_or_else(|| {
+            let mut g = Glitch::new();
+            g.status(status);
+            g
+        })
+    }
+
+    fn glitch_ctx<C>(self, status: StatusCode, context: C) -> std::result::Result<T, Glitch>
     where
         C: Display + Send + Sync + 'static,
     {
-        self.ok_or_else(|| Glitch::new_with_context(context))
+        self.ok_or_else(|| Glitch::new_with_status_context(status, context))
     }
 
-    fn with_context<C, F>(self, f: F) -> std::result::Result<T, Glitch>
+    fn glitch_with_ctx<C, F>(self, status: StatusCode, f: F) -> std::result::Result<T, Glitch>
     where
         C: Display + Send + Sync + 'static,
         F: FnOnce() -> C,
     {
-        self.ok_or_else(|| Glitch::new_with_context(f()))
+        self.ok_or_else(|| Glitch::new_with_status_context(status, f()))
     }
 }
 

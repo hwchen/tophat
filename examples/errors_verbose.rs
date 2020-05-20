@@ -1,12 +1,12 @@
 use futures_util::io::{AsyncRead, AsyncWrite};
-use http::Method;
+use http::{Method, StatusCode};
 use smol::{Async, Task};
 use std::net::TcpListener;
 use piper::Arc;
 use tophat::{
     server::{
         accept_with_opts,
-        glitch::{Context, Glitch, Result},
+        glitch::{Glitch, GlitchExt, Result},
         router::Router,
         ResponseWriter,
         ResponseWritten,
@@ -14,6 +14,8 @@ use tophat::{
     },
     Request,
 };
+
+const S_500: StatusCode = StatusCode::INTERNAL_SERVER_ERROR;
 
 fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     pretty_env_logger::init();
@@ -74,7 +76,7 @@ async fn database_error_context<W>(_req: Request, resp_wtr: ResponseWriter<W>) -
 
     let failed_db: std::result::Result<(), _> = Err(io::Error::new(io::ErrorKind::Other, "The database crashed"));
     failed_db
-        .context("looking for user")?; // returns a 500 automatically. Works only with anyhow integration
+        .glitch_ctx(S_500, "looking for user")?;
 
     resp_wtr.send().await
 }

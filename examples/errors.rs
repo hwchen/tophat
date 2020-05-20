@@ -54,7 +54,7 @@ async fn database_error<W>(_req: Request, resp_wtr: ResponseWriter<W>) -> Result
     use std::io;
 
     let failed_db = Err(io::Error::new(io::ErrorKind::Other, ""));
-    failed_db?; // returns a 500 automatically. Works only with anyhow integration
+    failed_db?; // returns a 500 automatically.
 
     resp_wtr.send().await
 }
