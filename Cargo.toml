@@ -2,7 +2,7 @@
 name = "tophat"
 version = "0.1.0"
 authors = ["Walther Chen <walther.chen@gmail.com>"]
-description = "async http server"
+description = "A small, pragmatic, and flexible async http server"
 keywords = ["http"]
 categories = ["web-programming::http-server"]
 edition = "2018"
