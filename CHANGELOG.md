@@ -4,6 +4,7 @@
 - Convenience methods on `ResponseWriter`.
 - `Glitch` and `GlitchExt` for error management to error response.
 - `ResponseWritten` no longer creatable by user.
+- Remove unwrap macros (were they ever a good idea?).
 - Router now behind feature gate.
 - Cors, feature gated.
 - Identity, feature gated.
