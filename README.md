@@ -1,4 +1,6 @@
 # tophat
+[![crates.io](https://meritbadge.herokuapp.com/tophat)](https://crates.io/crates/tophat)
+[![Released API docs](https://docs.rs/tophat/badge.svg)](https://docs.rs/tophat)
 [![CI](https://github.com/hwchen/tophat/workflows/ci/badge.svg)](https://github.com/hwchen/tophat/actions?query=workflow%3Aci)
 
 A small, pragmatic, and flexible async HTTP server library. Currently in beta.
