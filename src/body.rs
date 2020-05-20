@@ -9,6 +9,9 @@ use crate::util::{empty, Cursor};
 use crate::trailers::{Trailers, TrailersSender};
 
 pin_project_lite::pin_project! {
+    /// A streaming body for use with requests and responses.
+    ///
+    /// includes many convenience methods for converting to and from body
     pub struct Body {
         #[pin]
         pub(crate) reader: Box<dyn AsyncBufRead + Unpin + Send + Sync + 'static>,
@@ -19,6 +22,7 @@ pin_project_lite::pin_project! {
 }
 
 impl Body {
+    /// Create an empty Body
     pub fn empty() -> Self {
         let (sender, receiver) = piper::chan(1);
 
@@ -30,8 +34,10 @@ impl Body {
         }
     }
 
-    /// Length: None will result in Transfer-Encoding: chunked
-    /// length: Some(n) will result in fixed body
+    /// Create a Body from a typ implementing AsyncRead
+    ///
+    /// if len: None will result in Transfer-Encoding: chunked
+    /// if len: Some(n) will result in fixed body
     pub fn from_reader(
         reader: impl AsyncBufRead + Unpin + Send + Sync + 'static,
         len: Option<usize>,
@@ -46,6 +52,7 @@ impl Body {
         }
     }
 
+    /// Create a Body from bytes
     pub fn from_bytes(bytes: Vec<u8>) -> Self {
         let (sender, receiver) = piper::chan(1);
 
@@ -57,12 +64,14 @@ impl Body {
         }
     }
 
+    /// Read a Body into bytes. Consumes Body.
     pub async fn into_bytes(mut self) -> Result<Vec<u8>, Error> {
         let mut buf = Vec::with_capacity(1024);
         self.read_to_end(&mut buf).await.map_err(Error::BodyConversion)?;
         Ok(buf)
     }
 
+    /// Read a Body into a String. Consumes Body.
     pub async fn into_string(mut self) -> Result<String, Error> {
         let mut buf = String::with_capacity(self.length.unwrap_or(0));
         self.read_to_string(&mut buf).await.map_err(Error::BodyConversion)?;
@@ -85,6 +94,7 @@ impl Body {
         Ok((buf, trailer))
     }
 
+    /// sending trailers not yet supported
     pub fn send_trailers(&mut self) -> TrailersSender {
         let sender = self
             .trailer_sender

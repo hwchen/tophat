@@ -107,9 +107,12 @@ where
     Ok(())
 }
 
+/// Options for the tophat server.
 #[derive(Clone)]
 pub struct ServerOpts {
+    /// Connection timeout (in seconds)
     pub timeout: Option<Duration>,
+    /// Option to send error (from convertin error to Glitch) traces in an error response (Glitch)
     pub verbose_glitch: bool,
 }
 

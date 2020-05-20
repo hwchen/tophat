@@ -16,6 +16,10 @@
 
 //! Very Basic router
 //!
+//! - basic routing (no nesting)
+//! - holds global data
+//! - no extractors (you've got to find all the stuff you want attached to the `Request`)
+
 use futures_util::io::{AsyncRead, AsyncWrite};
 use http::{Method, StatusCode};
 use std::future::Future;
@@ -24,8 +28,12 @@ use path_tree::PathTree;
 use piper::Arc;
 use crate::server::{Request, ResponseWriter, ResponseWritten, Result};
 
+/// Convenience type for params.
+///
+/// A `Vec` of (param_name, captured_value)
 pub type Params = Vec<(String, String)>;
 
+/// A minimal router
 #[derive(Clone)]
 pub struct Router<W>
     where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
@@ -37,10 +45,12 @@ pub struct Router<W>
 impl<W> Router<W>
     where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
 {
+    /// Build a router
     pub fn build() -> RouterBuilder<W> {
         RouterBuilder::new()
     }
 
+    /// Call this to route a request
     pub async fn route(&self, mut req: Request, mut resp_wtr: ResponseWriter<W>) -> Result<ResponseWritten> {
         let path = "/".to_owned() + req.method().as_str() + req.uri().path();
 
@@ -67,6 +77,7 @@ impl<W> Router<W>
     }
 }
 
+/// Build a router
 pub struct RouterBuilder<W>
     where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
 {
@@ -84,6 +95,14 @@ impl<W> RouterBuilder<W>
         }
     }
 
+    /// Attach a route with: method, path, endpoint.
+    ///
+    /// For the path, you can use:
+    /// - Named parameters. e.g. :name.
+    /// - Catch-All parameters. e.g. *any, it must always be at the end of the pattern.
+    /// - Supports multiple naming for the same path segment. e.g. /users/:id and /users/:user_id/repos.
+    /// - Don't care about routes orders, recursive lookup, Static -> Named -> Catch-All.
+    /// (path-tree is used as the underlying router)
     pub fn at(self, method: Method, path: &str, endpoint: impl Endpoint<W>) -> Self {
         let mut this = self;
 
@@ -93,10 +112,18 @@ impl<W> RouterBuilder<W>
         this
     }
 
+    /// Add data of type `T` to the router, to be accessed later through the request as
+    /// `req.data()`. Data is stored in a typemap.
+    ///
+    /// Requires `RouterRequestExt`.
     pub fn data<T: Send + Sync + 'static>(self, data: T) -> Self {
         self.wrapped_data(Data::new(data))
     }
 
+    /// Add data of type `Data<T>` to the router, to be accessed later through the request as
+    /// `req.data()`. Data is stored in a typemap.
+    ///
+    /// Requires `RouterRequestExt`.
     pub fn wrapped_data<T: Send + Sync + 'static>(mut self, data: T) -> Self {
         let mut map = self.data.take().unwrap_or_else(type_map::concurrent::TypeMap::new);
         map.insert(data);
@@ -104,6 +131,7 @@ impl<W> RouterBuilder<W>
         self
     }
 
+    /// Finish building router
     pub fn finish(self) -> Router<W> {
         Router {
             tree: Arc::new(self.tree),
@@ -112,6 +140,8 @@ impl<W> RouterBuilder<W>
     }
 }
 
+/// A trait for all endpoints, so that the user can just use any suitable closure or fn in the
+/// method for building a router.
 pub trait Endpoint<W>: Send + Sync + 'static
     where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
 {
@@ -137,13 +167,16 @@ where
 
 // Router extras: Data and params access
 
+/// Data type for wrapping data for access within an endpoint
 pub struct Data<T>(Arc<T>);
 
 impl<T> Data<T> {
+    /// Make a Data
     pub fn new(t: T) -> Self {
         Data(Arc::new(t))
     }
 
+    /// Make a Data from data which is wrapped in an Arc
     pub fn from_arc(arc: Arc<T>) -> Self {
         Data(arc)
     }
@@ -166,9 +199,13 @@ impl<T> Clone for Data<T> {
 #[derive(Clone)]
 struct DataMap(Data<type_map::concurrent::TypeMap>);
 
+/// Trait for convenience methods on a Request, which will allow for retrieving Data and params.
 pub trait RouterRequestExt {
+    /// Get data
     fn data<T: Send + Sync + 'static>(&self) -> Option<Data<T>>;
+    /// Get params
     fn params(&self) -> Option<&Params>;
+    /// Get a specific param
     fn get_param(&self, key: &str) -> Option<&str>;
 }
 

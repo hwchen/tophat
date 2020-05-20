@@ -25,8 +25,9 @@ use std::convert::TryInto;
 use std::time::Duration;
 use thiserror::Error as ThisError;
 
-use crate::{http::StatusCode, server::ResponseWriter, Body, Request, Response};
+use crate::{server::ResponseWriter, Request};
 
+/// Identity "middlware", for handling authorized sessions.
 #[derive(Clone)]
 pub struct Identity {
     /// The key for signing jwts.  Should be kept private, but needs
@@ -59,6 +60,7 @@ impl Identity {
         IdentityBuilder::new(server_key)
     }
 
+    /// Checked for an authorized user for the incoming request
     pub fn authorized_user(&self, req: &Request) -> Option<String> {
         // Get Cookie and token
         let jwtstr = get_cookie(&req, &self.cookie_name);
@@ -78,6 +80,7 @@ impl Identity {
         }
     }
 
+    /// Set a token on the `ResponseWriter`, which gets set in a cookie, which authorizes the user.
     pub fn set_auth_token<W>(&self, user: &str, resp_wtr: &mut ResponseWriter<W>)
         where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
     {
@@ -97,6 +100,8 @@ impl Identity {
         );
     }
 
+    /// Set an expired token on the `ResponseWriter`, which gets set in a cookie, which will
+    /// effectively "log out" the user.
     pub fn forget<W>(&self, resp_wtr: &mut ResponseWriter<W>)
         where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
     {
@@ -135,6 +140,7 @@ impl Identity {
 // Separate builder, because there's two sets of apis, one for building and one for using.
 //
 // If it was just build and then finish, might not need a builder.
+/// Builder for Identity
 pub struct IdentityBuilder {
     server_key: String,
     issuer: Option<String>,
@@ -208,6 +214,7 @@ impl IdentityBuilder {
         self
     }
 
+    /// Finish building an Identity
     pub fn finish(self) -> Identity {
         Identity {
             server_key: self.server_key,
@@ -254,18 +261,13 @@ struct Claims {
     sub: String,
 }
 
+/// Error for Identity. Bascially, the errors are for encoding or decoding the jwt token.
 #[derive(ThisError, Debug)]
 pub enum IdentityFail {
+    /// Encode error for jwt token
     #[error("jwt encoding error: {0}")]
     Encode(jsonwebtoken::errors::Error),
+    /// Decode error for jwt token
     #[error("jwt decoding error: {0}")]
     Decode(jsonwebtoken::errors::Error),
-}
-
-impl IdentityFail {
-    pub fn to_response(&self) -> crate::Response {
-        let mut resp = Response::new(Body::empty());
-        *resp.status_mut() = StatusCode::BAD_REQUEST;
-        resp
-    }
 }

@@ -41,6 +41,7 @@ use crate::{
     Request
 };
 
+/// Build a Cors
 pub struct CorsBuilder {
     /// For preflight and simple, whether to add the access-control-allow-credentials header
     /// default false
@@ -220,6 +221,7 @@ impl CorsBuilder {
         self
     }
 
+    /// Finish building a Cors
     pub fn finish(self) -> Cors {
         let exposed_headers = if self.exposed_headers.is_empty() {
             None
@@ -240,6 +242,9 @@ impl CorsBuilder {
     }
 }
 
+/// Cors
+///
+/// See module docs for more details
 #[derive(Clone)]
 pub struct Cors {
     /// For preflight and simple, whether to add the access-control-allow-credentials header
@@ -265,6 +270,7 @@ pub struct Cors {
 }
 
 impl Cors {
+    /// Build a Cors
     pub fn build() -> CorsBuilder {
         CorsBuilder {
             credentials: false,
@@ -282,6 +288,12 @@ impl Cors {
     // The design seems a little weird in terms of error handling; basically
     // - Ok means continuing to endpoint. This is for both simple cors and not cors
     // - Err means short-circuit. This is for preflight and invalid
+    /// Validate Cors.
+    ///
+    /// - handles simple Cors
+    /// - handles preflight.
+    ///
+    /// See example `cors` to set up properly as middleware.
     pub fn validate<W>(&self, req: &Request, resp_wtr: &mut ResponseWriter<W>) -> Result<()>
         where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
     {
@@ -413,18 +425,9 @@ impl Cors {
     }
 }
 
-pub enum Validated {
-    // proceed to endpoint
-    Simple,
-    // proceed to endpoint
-    NotCors,
-    // early return
-    Preflight,
-    // early return
-    Invalid,
-}
-
+/// Convenience trait for converting a Url into an Origin for cors
 pub trait IntoOrigin {
+    /// Convert a Url into an Origin for cors
     fn into_origin(self) -> Origin;
 }
 

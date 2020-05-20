@@ -1,3 +1,9 @@
+//! # Trailers
+//!
+//! Trailers are headers sent at the end of a chunked message.
+//!
+//! Currently tophat can only receive, not send them.
+
 use piper::Sender;
 use http::HeaderMap;
 use std::ops::{Deref, DerefMut};
@@ -7,6 +13,7 @@ use crate::Error;
 /// A collection of trailing HTTP headers.
 #[derive(Debug)]
 pub struct Trailers {
+    /// The headers in a trailer
     pub headers: HeaderMap,
 }
 

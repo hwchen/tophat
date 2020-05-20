@@ -80,25 +80,3 @@ impl AsyncBufRead for Empty {
 
     fn consume(self: Pin<&mut Self>, _amt: usize) {}
 }
-
-#[macro_export]
-macro_rules! some_unwrap_or {
-    ($option_expr: expr, $http_resp:expr) => {
-        match $option_expr {
-            Some(x) => x,
-            None => return $http_resp,
-        }
-    };
-}
-
-#[macro_export]
-macro_rules! ok_unwrap_or{
-    ($option_expr: expr, $http_resp:expr) => {
-        match $option_expr {
-            Ok(x) => x,
-            Err(err) => {
-                return $http_resp;
-            }
-        }
-    };
-}

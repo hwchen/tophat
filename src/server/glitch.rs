@@ -33,9 +33,12 @@ use std::fmt::Display;
 
 use crate::server::InnerResponse;
 
+/// Convenience type for `Result<T, Glitch>`
 pub type Result<T> = std::result::Result<T, Glitch>;
 
 // similar to inner_response, but with string-only body
+/// Glitch is designed to be the error response for tophat. Users can either create them manually,
+/// or use `GlitchExt` to easily convert from `std::error::Error`.
 #[derive(Debug)]
 pub struct Glitch {
     pub(crate) status: Option<StatusCode>,
@@ -70,6 +73,7 @@ impl std::default::Default for Glitch {
 }
 
 impl Glitch {
+    /// Create a Glitch
     pub fn new() -> Self {
         Self {
             status: None,
@@ -143,14 +147,17 @@ impl Glitch {
         }
     }
 
+    /// Set status of a Glitch
     pub fn status(&mut self, status: http::StatusCode) {
         self.status = Some(status);
     }
 
+    /// Add a message to a Glitch
     pub fn message(&mut self, message: &str) {
         self.message = Some(message.into());
     }
 
+    /// Convenience method for sending a 400
     pub fn bad_request() -> Self {
         Self {
             status: Some(StatusCode::BAD_REQUEST),
@@ -161,6 +168,7 @@ impl Glitch {
         }
     }
 
+    /// Convenience method for sending a 500
     pub fn internal_server_error() -> Self {
         Self {
             status: None,
@@ -187,13 +195,19 @@ mod private {
 }
 
 
+/// GlitchExt makes it easy to chain onto a Result or Option, and convert into a Glitch.
 pub trait GlitchExt<T, E>: private::Sealed {
+    /// chain with `.glitch(<StatusCode>)?`, sets a Glitch with empty body.
     fn glitch(self, status: StatusCode) -> std::result::Result<T, Glitch>;
 
+    /// chain with `.glitch_ctx(<StatusCode>, "your_msg")?`, sets a Glitch with message in body.
     fn glitch_ctx<C>(self, status: StatusCode, ctx: C) -> std::result::Result<T, Glitch>
     where
         C: Display + Send + Sync + 'static;
 
+    /// chain with `.glitch_ctx(<StatusCode>, || x.to_string())?`, sets a Glitch with message in body.
+    ///
+    /// Use when your context is set using a function, instead of just a value.
     fn glitch_with_ctx<C, F>(self, status: StatusCode, f: F) -> std::result::Result<T, Glitch>
     where
         C: Display + Send + Sync + 'static,
@@ -253,6 +267,11 @@ impl<T> GlitchExt<T, Infallible> for Option<T> {
     }
 }
 
+/// Convenience macro for creating a Glitch.
+///
+/// `glitch!()`: 500
+/// `glitch!(StatusCode::BadRequest)`: 400
+/// `glitch!(StatusCode::BadRequest, "custom error")`: 400 with message in body
 #[macro_export]
 macro_rules! glitch (
     () => {
@@ -277,6 +296,12 @@ macro_rules! glitch (
 
 #[macro_export]
 /// This one panics!
+///
+/// Convenience macro for creating a Glitch.
+///
+/// `glitch_code!()`: 500
+/// `glitch_code!(400)`: 400
+/// `glitch_code!(400, "custom error")`: 400 with message in body
 macro_rules! glitch_code (
     () => {
         Glitch::internal_server_error();

@@ -106,9 +106,8 @@ pub struct ResponseWriter<W>
 where
     W: AsyncWrite + Clone + Send + Sync + Unpin + 'static,
 {
-    // TODO make not public
-    pub response: Response,
-    pub writer: W,
+    pub(crate) response: Response,
+    pub(crate) writer: W,
 }
 
 impl<W> ResponseWriter<W>
@@ -238,4 +237,5 @@ where
 //
 // Currently an empty struct, not a unit struct, to make it impossible for user to create
 // themselves.
+/// A marker to ensure that a response is written inside a request handler.
 pub struct ResponseWritten {}
