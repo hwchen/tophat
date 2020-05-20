@@ -3,7 +3,12 @@
 
 //! # tophat
 //!
-//! An async http server library for Rust.
+//! A small, pragmatic, and flexible async HTTP server library.
+//!
+//! More docs coming soon! For now, please see the examples directory for features.
+//!
+//! Also, please note that you'll need to set up your own async runtime to work with tophat. All
+//! the examples use `smol` as the runtime.
 
 mod body;
 mod chunked;
