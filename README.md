@@ -22,7 +22,9 @@ instead of:
 async fn handler(req:Request) -> Result<Response, Error> {
     Ok(Response::empty())
 }
+
 ```
+Don't be scared away by the generics and trait bounds! They won't bite! (probably)
 
 # Features
 - HTTP/1.1
@@ -46,6 +48,39 @@ Upcoming features:
 Long term:
 - HTTP/2
 
+# Example
+Using [`smol`](https://github.com/stjepang/smol) as the async runtime. Example is single-threaded, see `smol` docs for how to make a multi-threaded executor.
+```rust
+use smol::{Async, Task};
+use std::net::TcpListener;
+use piper::Arc;
+use tophat::server::accept;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let listener = Async::<TcpListener>::bind("127.0.0.1:9999")?;
+
+    smol::run(async {
+        loop {
+            let (stream, _) = listener.accept().await?;
+            let stream = Arc::new(stream);
+
+            let task = Task::spawn(async move {
+                let serve = accept(stream, |_req, resp_wtr| async {
+                    resp_wtr.send().await
+                }).await;
+
+                if let Err(err) = serve {
+                    eprintln!("Error: {}", err);
+                }
+
+            });
+
+            task.detach();
+        }
+    })
+}
+```
+
 # Philosophy
 
 I wouldn't consider this a batteries-included framework which tries to make every step easy. There are conveniences, but overall tophat is pretty minimal. For those who don't like boilerplate, another framework would probably work better. Users of tophat need to be familiar async runtimes, setting up a TCP stream, `Arc`, traits, generics, etc. Tophat won't hold your hand.
@@ -53,6 +88,11 @@ I wouldn't consider this a batteries-included framework which tries to make ever
 In exchange, tophat provides more transparency and more control. Tophat won't dictate how to structure your app, it should play nicely with your architecture.
 
 And if you want to know what tophat is doing under the hood, the code is meant to be simple and straightforward (Hopefully this also leads to better compile times!).
+
+# Inspiration
+I was inspired to write tophat because:
+- I wanted to have an async https server which was not tied to an async ecosystem and
+- I saw this github issue on using a `ResponseWriter` instead of returning `Response`: https://github.com/hyperium/hyper/issues/2181
 
 # Thanks
 Especially to [async-h1](https://github.com/http-rs/async-h1), whose eye for structure and design I appreciate, and whose code base tophat is built from.
