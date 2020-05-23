@@ -53,10 +53,8 @@ where
     // All errors should be bubbled up to this fn to handle, either in logs or in responses.
 
     loop {
-        // If connection is lost but I don't bubble up the error, then this fn still exits, no
-        // worries about it hanging around.
-
         // decode to Request
+        // returns Ok(None) if no request to decode. So no need to exit on a ConnectionLost error.
         let req_fut = decode(io.clone());
 
         // Handle req failure modes, timeout, eof
@@ -87,17 +85,7 @@ where
             }
         };
 
-        // Encode from Response happens when `ResponseWriter::send()` is called inside endpoint.
-        // Handle errors from:
-        // - encoding (std::io::Error): try to send 500
-        // - errors from endpoint: send 500
-        //
-        // Users of tophat should build their own error responses.
-        // Perhaps later I can build in a hook for custom error handling, but I should wait for use
-        // cases.
         let resp_wtr = ResponseWriter { writer: io.clone(), response: Response::new(Body::empty()) };
-        // TODO will spawning task here approximate multiplexing? Ah, but then I need integration
-        // with executor.
         if let Err(glitch) = endpoint(req, resp_wtr).await {
             let _ = glitch.into_inner_response(opts.verbose_glitch)
                 .send(io.clone()).await;
@@ -125,9 +113,7 @@ impl Default for ServerOpts {
     }
 }
 
-// handles both writing response, and currently picking out which errors will return err and close
-// connection. TODO could use more infrastructure in decode to name which decode fails should become
-// lib-level errors. But it was a bit too boilerplatey to implement in the decode module.
+// handles both writing error response and bubbling up major system errors as necessary.
 async fn handle_decode_fail<RW>(fail: DecodeFail, io: RW) -> std::result::Result<(), Error>
 where
     RW: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
