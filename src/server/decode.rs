@@ -144,6 +144,8 @@ where
     Ok(Some(req))
 }
 
+// Internal failures. If one leads to an external error to bubble up, convert to a public error in
+// the `error` module.
 #[derive(Debug)]
 pub(crate) enum DecodeFail {
     // These errors should result in a connection closure

@@ -270,6 +270,8 @@ pub enum IdentityFail {
     Decode(jsonwebtoken::errors::Error),
 }
 
+impl std::error::Error for IdentityFail {}
+
 impl fmt::Display for IdentityFail {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use IdentityFail::*;
