@@ -3,20 +3,39 @@
 //! "App" errors, which are handled within an endpoint and result only in loggin and an Http
 //! Response, are handled by `Glitch`.
 
-use thiserror::Error as ThisError;
+use std::fmt;
 
 /// Public Errors (does not include internal fails)
-#[derive(ThisError, Debug)]
+#[derive(Debug)]
 pub enum Error {
     /// Error when converting from a type to Body
-    #[error("Error converting body: {0}")]
     BodyConversion(std::io::Error),
 
     /// Error because tophat does not support the transfer encoding.
-    #[error("Connection closed: Unsupported Transfer Encoding")]
     ConnectionClosedUnsupportedTransferEncoding,
 
     /// Connection lost
-    #[error("Connection lost: {0}")]
     ConnectionLost(std::io::Error),
+}
+
+impl std::error::Error for Error {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        use Error::*;
+        match self {
+            BodyConversion(err) => Some(err),
+            ConnectionClosedUnsupportedTransferEncoding => None,
+            ConnectionLost(err) => Some(err),
+        }
+    }
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use Error::*;
+        match self {
+            BodyConversion(err) => write!(f, "Error converting body: {}", err),
+            ConnectionClosedUnsupportedTransferEncoding => write!(f, "Connection closed: Unsupported Transfer Encoding"),
+            ConnectionLost(err) => write!(f, "Connection lost: {}", err),
+        }
+    }
 }

@@ -22,8 +22,8 @@ use http::header;
 use jsonwebtoken::{encode, decode, Header, Validation, EncodingKey, DecodingKey};
 use serde::{Serialize, Deserialize};
 use std::convert::TryInto;
+use std::fmt;
 use std::time::Duration;
-use thiserror::Error as ThisError;
 
 use crate::{server::ResponseWriter, Request};
 
@@ -262,12 +262,20 @@ struct Claims {
 }
 
 /// Error for Identity. Bascially, the errors are for encoding or decoding the jwt token.
-#[derive(ThisError, Debug)]
+#[derive(Debug)]
 pub enum IdentityFail {
     /// Encode error for jwt token
-    #[error("jwt encoding error: {0}")]
     Encode(jsonwebtoken::errors::Error),
     /// Decode error for jwt token
-    #[error("jwt decoding error: {0}")]
     Decode(jsonwebtoken::errors::Error),
+}
+
+impl fmt::Display for IdentityFail {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use IdentityFail::*;
+        match self {
+            Encode(err) => write!(f, "jwt encoding error: {}", err),
+            Decode(err) => write!(f, "jwt decoding error: {}", err),
+        }
+    }
 }

@@ -28,7 +28,6 @@ lazy_static = "1.4.0"
 log = "0.4.8"
 pin-project-lite = "0.1.4"
 piper = "0.1.1"
-thiserror = "1.0.16"
 
 # for router
 path-tree = { version = "0.1.9", optional = true }

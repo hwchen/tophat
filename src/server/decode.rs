@@ -8,7 +8,7 @@
 use futures_io::AsyncRead;
 use futures_util::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
 use http::header::{self, HeaderName, HeaderValue};
-use thiserror::Error as ThisError;
+use std::fmt;
 
 use crate::error::Error;
 use crate::Request;
@@ -55,11 +55,12 @@ where
     }
 
     // Convert head buf into an httparse instance, and validate.
-    let status = httparse_req.parse(&buf)?;
+    let status = httparse_req.parse(&buf).map_err(|err| HttpHeadParse(err))?;
     if status.is_partial() { return Err(HttpMalformedHead) };
 
     // Check that req basics are here
-    let method = http::Method::from_bytes(httparse_req.method.ok_or(HttpNoMethod)?.as_bytes())?;
+    let method = http::Method::from_bytes(httparse_req.method.ok_or(HttpNoMethod)?.as_bytes())
+        .map_err(|err| HttpMethod(err))?;
     let version = if httparse_req.version.ok_or(HttpNoVersion)? == 1 {
         //TODO keep_alive = true, is_http_11 = true
         http::Version::HTTP_11
@@ -102,8 +103,8 @@ where
 
         req.headers_mut().expect("Request builder error")
             .append(
-                HeaderName::from_bytes(header.name.as_bytes())?,
-                HeaderValue::from_bytes(header.value)?
+                HeaderName::from_bytes(header.name.as_bytes()).map_err(|err| HttpHeaderName(err))?,
+                HeaderValue::from_bytes(header.value).map_err(|err| HttpHeaderValue(err))?
             );
     }
 
@@ -143,45 +144,51 @@ where
     Ok(Some(req))
 }
 
-#[derive(ThisError, Debug)]
+#[derive(Debug)]
 pub(crate) enum DecodeFail {
     // These errors should result in a connection closure
-    #[error("Connection Lost: {0}")]
     ConnectionLost(std::io::Error),
-    #[error("Http parse malformed head")]
     HttpMalformedHead,
-    #[error("Http transfer encoding not supported")]
     HttpUnsupportedTransferEncoding,
 
     // Below failures should be handled with a Response, but not with connection closure.
 
     // TODO check that these are actually errors, and not just something to handle
-    #[error("Http no path found")]
     HttpNoPath,
-    #[error("Http no method found")]
     HttpNoMethod,
-    #[error("Http: no version found")]
     HttpNoVersion,
-    #[error("Http: no host found")]
     HttpNoHost,
-    #[error("Http invalid content length")]
     HttpInvalidContentLength,
-    #[error("Http request could not be built")]
     HttpRequestBuild,
-    #[error("Http version 1.0 not supported")]
     Http10NotSupported,
 
     // conversions related to http and httparse lib
-    #[error("Http header parsing error: {0}")]
-    HeaderParse(#[from] httparse::Error),
-    #[error("Http Uri error: {0}")]
-    HttpUri(#[from] http::uri::InvalidUri),
-    #[error("Http Method error: {0}")]
-    HttpMethod(#[from] http::method::InvalidMethod),
-    #[error("Http Header name error: {0}")]
-    HttpHeaderName(#[from] http::header::InvalidHeaderName),
-    #[error("Http Header value error: {0}")]
-    HttpHeaderValue(#[from] http::header::InvalidHeaderValue),
+    HttpHeadParse(httparse::Error),
+    HttpMethod(http::method::InvalidMethod),
+    HttpHeaderName(http::header::InvalidHeaderName),
+    HttpHeaderValue(http::header::InvalidHeaderValue),
+}
+
+impl fmt::Display for DecodeFail {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use DecodeFail::*;
+        match self {
+            ConnectionLost(err) => write!(f, "Connection Lost: {}", err),
+            HttpMalformedHead => write!(f, "Http parse malformed head"),
+            HttpUnsupportedTransferEncoding => write!(f, "Http transfer encoding not supported"),
+            HttpNoPath => write!(f, "Http no path found"),
+            HttpNoMethod => write!(f, "Http no method found"),
+            HttpNoVersion => write!(f, "Http no version found"),
+            HttpNoHost => write!(f, "Http no host found"),
+            HttpInvalidContentLength => write!(f, "Http invalid content length"),
+            HttpRequestBuild => write!(f, "Http request could not be built"),
+            Http10NotSupported => write!(f, "Http version 1.0 not supported"),
+            HttpHeadParse(err) => write!(f, "Http header parsing error: {}", err),
+            HttpMethod(err) => write!(f, "Http Method error: {}", err),
+            HttpHeaderName(err) => write!(f, "Http Header name error: {}", err),
+            HttpHeaderValue(err) => write!(f, "Http Header value error: {}", err),
+        }
+    }
 }
 
 pub(crate) fn fail_to_response_and_log(fail: &DecodeFail) -> Option<InnerResponse> {
