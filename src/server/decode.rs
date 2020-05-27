@@ -55,12 +55,12 @@ where
     }
 
     // Convert head buf into an httparse instance, and validate.
-    let status = httparse_req.parse(&buf).map_err(|err| HttpHeadParse(err))?;
+    let status = httparse_req.parse(&buf).map_err(HttpHeadParse)?;
     if status.is_partial() { return Err(HttpMalformedHead) };
 
     // Check that req basics are here
     let method = http::Method::from_bytes(httparse_req.method.ok_or(HttpNoMethod)?.as_bytes())
-        .map_err(|err| HttpMethod(err))?;
+        .map_err(HttpMethod)?;
     let version = if httparse_req.version.ok_or(HttpNoVersion)? == 1 {
         //TODO keep_alive = true, is_http_11 = true
         http::Version::HTTP_11
@@ -103,8 +103,8 @@ where
 
         req.headers_mut().expect("Request builder error")
             .append(
-                HeaderName::from_bytes(header.name.as_bytes()).map_err(|err| HttpHeaderName(err))?,
-                HeaderValue::from_bytes(header.value).map_err(|err| HttpHeaderValue(err))?
+                HeaderName::from_bytes(header.name.as_bytes()).map_err(HttpHeaderName)?,
+                HeaderValue::from_bytes(header.value).map_err(HttpHeaderValue)?
             );
     }
 
