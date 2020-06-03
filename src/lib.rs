@@ -12,6 +12,7 @@
 
 mod body;
 mod chunked;
+pub mod client;
 mod error;
 mod request;
 mod response;
