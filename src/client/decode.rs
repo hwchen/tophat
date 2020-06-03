@@ -1,4 +1,5 @@
 #![allow(clippy::nonminimal_bool)]
+#![allow(clippy::op_ref)]
 
 use futures_io::AsyncRead;
 use futures_util::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
