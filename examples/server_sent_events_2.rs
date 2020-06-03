@@ -1,10 +1,10 @@
+use async_dup::Arc;
 use futures_core::Stream;
 use smol::{Async, Task};
 use std::net::TcpListener;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::time::Duration;
-use async_dup::Arc;
 use tophat::server::accept;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -30,7 +30,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     smol::Task::spawn(async move {
                         let sse_res = resp_wtr.send().await;
                         let _ = tx_res.send(sse_res).await;
-                    }).detach();
+                    })
+                    .detach();
 
                     let _ = tx.send("data: lorem\n\n".to_owned()).await;
 
@@ -46,12 +47,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     // don't think that is idiomatic behavior for an sse, they should be
                     // long-lived.
                     rx_res.recv().await.unwrap()
-                }).await;
+                })
+                .await;
 
                 if let Err(err) = serve {
                     eprintln!("Error: {}", err);
                 }
-
             });
 
             task.detach();
@@ -64,10 +65,7 @@ struct Client(async_channel::Receiver<String>);
 impl Stream for Client {
     type Item = Result<String, std::io::Error>;
 
-    fn poll_next(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Option<Self::Item>> {
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         match Pin::new(&mut self.0).poll_next(cx) {
             Poll::Ready(Some(v)) => Poll::Ready(Some(Ok(v))),
             Poll::Ready(None) => Poll::Ready(None),
@@ -75,4 +73,3 @@ impl Stream for Client {
         }
     }
 }
-

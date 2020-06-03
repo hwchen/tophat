@@ -1,15 +1,14 @@
+use async_dup::Arc;
 use futures_util::io::{AsyncRead, AsyncWrite};
 use http::Method;
 use smol::{Async, Task};
 use std::net::TcpListener;
-use async_dup::Arc;
 use tophat::{
     server::{
         accept,
         glitch::{Glitch, Result},
         router::Router,
-        ResponseWriter,
-        ResponseWritten,
+        ResponseWriter, ResponseWritten,
     },
     Request,
 };
@@ -36,7 +35,8 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                 let serve = accept(stream, |req, resp_wtr| async {
                     let res = router.route(req, resp_wtr).await;
                     res
-                }).await;
+                })
+                .await;
 
                 if let Err(err) = serve {
                     eprintln!("Error: {}", err);
@@ -49,7 +49,8 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 }
 
 async fn database_error<W>(_req: Request, resp_wtr: ResponseWriter<W>) -> Result<ResponseWritten>
-    where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
+where
+    W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
 {
     use std::io;
 
@@ -60,7 +61,8 @@ async fn database_error<W>(_req: Request, resp_wtr: ResponseWriter<W>) -> Result
 }
 
 async fn missing_data<W>(_req: Request, resp_wtr: ResponseWriter<W>) -> Result<ResponseWritten>
-    where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
+where
+    W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
 {
     let failed_db = None;
 

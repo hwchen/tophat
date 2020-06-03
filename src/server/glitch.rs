@@ -23,11 +23,7 @@
 // then convert your error to a response then? Here, your error is converted on the spot.
 //!
 
-use http::{
-    header::HeaderMap,
-    status::StatusCode,
-    version::Version,
-};
+use http::{header::HeaderMap, status::StatusCode, version::Version};
 use std::convert::Infallible;
 use std::fmt::Display;
 
@@ -110,7 +106,11 @@ impl Glitch {
         }
     }
 
-    pub(crate) fn new_with_status_err_context<E, C>(status: StatusCode, error: E, context: C) -> Self
+    pub(crate) fn new_with_status_err_context<E, C>(
+        status: StatusCode,
+        error: E,
+        context: C,
+    ) -> Self
     where
         E: std::error::Error + Send + Sync + 'static,
         C: Display + Send + Sync + 'static,
@@ -126,7 +126,7 @@ impl Glitch {
 
     pub(crate) fn into_inner_response(self, verbose: bool) -> InnerResponse {
         // Always start with user-created message
-        let mut msg: String =  self.message.unwrap_or_else(|| "".to_string());
+        let mut msg: String = self.message.unwrap_or_else(|| "".to_string());
 
         if verbose {
             // must be a less awkward way to do this.
@@ -186,14 +186,10 @@ impl Glitch {
 mod private {
     pub trait Sealed {}
 
-    impl<T, E> Sealed for std::result::Result<T, E>
-    where
-        E: std::error::Error + Send + Sync + 'static
-    {}
+    impl<T, E> Sealed for std::result::Result<T, E> where E: std::error::Error + Send + Sync + 'static {}
 
     impl<T> Sealed for Option<T> {}
 }
-
 
 /// GlitchExt makes it easy to chain onto a Result or Option, and convert into a Glitch.
 pub trait GlitchExt<T, E>: private::Sealed {

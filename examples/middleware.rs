@@ -3,18 +3,17 @@
 //! It's kind of a do-it-yourself middleware, there's not formal framework for it. It should be
 //! easy enough to plug in.
 
+use async_dup::Arc;
 use futures_util::io::{AsyncRead, AsyncWrite};
 use http::Method;
 use smol::{Async, Task};
 use std::net::TcpListener;
-use async_dup::Arc;
 use tophat::{
     server::{
         accept,
         glitch::Result,
         router::{Router, RouterRequestExt},
-        ResponseWriter,
-        ResponseWritten,
+        ResponseWriter, ResponseWritten,
     },
     Request,
 };
@@ -55,7 +54,8 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                     // back to routing here
                     let res = router.route(req, resp_wtr).await;
                     res
-                }).await;
+                })
+                .await;
 
                 if let Err(err) = serve {
                     eprintln!("Error: {}", err);
@@ -67,8 +67,9 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     })
 }
 
-async fn hello_user< W>(req: Request, mut resp_wtr: ResponseWriter<W>) -> Result<ResponseWritten>
-    where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
+async fn hello_user<W>(req: Request, mut resp_wtr: ResponseWriter<W>) -> Result<ResponseWritten>
+where
+    W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
 {
     //smol::Timer::after(std::time::Duration::from_secs(5)).await;
 
@@ -96,7 +97,6 @@ struct Cors {
 }
 
 impl Cors {
-
     // Sets the Access Control Header on the Response of a Responsewriter, if Origin in Request is
     // set.
     //
@@ -104,7 +104,8 @@ impl Cors {
     //
     // Unless the user changes the header in the endpoint, the header should be sent to the client.
     fn simple_cors<W>(&self, req: &Request, resp_wtr: &mut ResponseWriter<W>)
-        where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
+    where
+        W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
     {
         if req.headers().get("Origin").is_some() {
             resp_wtr.insert_header(

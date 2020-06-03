@@ -1,4 +1,4 @@
-use futures_io::{AsyncRead, AsyncBufRead};
+use futures_io::{AsyncBufRead, AsyncRead};
 use std::io;
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -40,7 +40,7 @@ impl<T> AsyncBufRead for Cursor<T>
 where
     T: AsRef<[u8]> + Unpin,
 {
-    fn poll_fill_buf(self: Pin<&mut Self>, _cx: &mut Context<'_>,) -> Poll<io::Result<&'_ [u8]>> {
+    fn poll_fill_buf(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<io::Result<&'_ [u8]>> {
         Poll::Ready(std::io::BufRead::fill_buf(&mut self.get_mut().inner))
     }
 
@@ -74,7 +74,7 @@ impl AsyncRead for Empty {
 }
 
 impl AsyncBufRead for Empty {
-    fn poll_fill_buf(self: Pin<&mut Self>, _cx: &mut Context<'_>,) -> Poll<io::Result<&'_ [u8]>> {
+    fn poll_fill_buf(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<io::Result<&'_ [u8]>> {
         Poll::Ready(Ok(&[]))
     }
 

@@ -7,11 +7,11 @@ pub mod cors;
 mod decode;
 mod encode;
 pub mod glitch;
+#[cfg(feature = "identity")]
+pub mod identity;
 mod response_writer;
 #[cfg(feature = "router")]
 pub mod router;
-#[cfg(feature = "identity")]
-pub mod identity;
 
 use futures_core::Future;
 use futures_io::{AsyncRead, AsyncWrite};
@@ -44,7 +44,11 @@ where
 /// Accept a new incoming Http/1.1 connection
 ///
 /// Automatically supports KeepAlive
-pub async fn accept_with_opts<RW, F, Fut>(io: RW, opts: ServerOpts, endpoint: F) -> std::result::Result<(), Error>
+pub async fn accept_with_opts<RW, F, Fut>(
+    io: RW,
+    opts: ServerOpts,
+    endpoint: F,
+) -> std::result::Result<(), Error>
 where
     RW: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
     F: Fn(Request, ResponseWriter<RW>) -> Fut,
@@ -65,7 +69,7 @@ where
                 Ok(Ok(None)) | Err(TimeoutError { .. }) => {
                     log::debug!("Timeout Error");
                     break; // EOF or timeout
-                },
+                }
                 Ok(Err(err)) => {
                     handle_decode_fail(err, io.clone()).await?;
                     // and continue on to next request
@@ -81,14 +85,19 @@ where
                     handle_decode_fail(err, io.clone()).await?;
                     // and continue on to next request
                     continue;
-                },
+                }
             }
         };
 
-        let resp_wtr = ResponseWriter { writer: io.clone(), response: Response::new(Body::empty()) };
+        let resp_wtr = ResponseWriter {
+            writer: io.clone(),
+            response: Response::new(Body::empty()),
+        };
         if let Err(glitch) = endpoint(req, resp_wtr).await {
-            let _ = glitch.into_inner_response(opts.verbose_glitch)
-                .send(io.clone()).await;
+            let _ = glitch
+                .into_inner_response(opts.verbose_glitch)
+                .send(io.clone())
+                .await;
         }
     }
 

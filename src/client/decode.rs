@@ -1,3 +1,4 @@
+#![allow(clippy::nonminimal_bool)]
 use futures_io::AsyncRead;
 use futures_util::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
 use http::{
@@ -6,9 +7,9 @@ use http::{
 };
 use httpdate::fmt_http_date;
 
-use crate::{Body, Response};
-use crate::chunked::ChunkedDecoder;
 use super::error::{self, ClientError};
+use crate::chunked::ChunkedDecoder;
+use crate::{Body, Response};
 
 const CR: u8 = b'\r';
 const LF: u8 = b'\n';
@@ -28,7 +29,9 @@ where
 
     // Keep reading bytes from the stream until we hit the end of the stream.
     loop {
-        let bytes_read = reader.read_until(LF, &mut buf).await
+        let bytes_read = reader
+            .read_until(LF, &mut buf)
+            .await
             .map_err(error::decode_err)?;
         // No more bytes are yielded from the stream.
         if !(bytes_read != 0) {
@@ -36,8 +39,10 @@ where
         }
 
         // Prevent CWE-400 DDOS with large HTTP Headers.
-        if!(buf.len() < MAX_HEAD_LENGTH) {
-            return Err(error::decode("Head byte length should be less than 8kb".to_owned()));
+        if !(buf.len() < MAX_HEAD_LENGTH) {
+            return Err(error::decode(
+                "Head byte length should be less than 8kb".to_owned(),
+            ));
         };
 
         // We've hit the end delimiter of the stream.
@@ -51,9 +56,10 @@ where
     }
 
     // Convert our header buf into an httparse instance, and validate.
-    let status = httparse_res.parse(&buf)
-        .map_err(error::decode_err)?;
-    if status.is_partial() { return Err(error::decode("Malformed HTTP head".to_owned())) } ;
+    let status = httparse_res.parse(&buf).map_err(error::decode_err)?;
+    if status.is_partial() {
+        return Err(error::decode("Malformed HTTP head".to_owned()));
+    };
 
     let code = httparse_res.code;
     let code = code.ok_or_else(|| error::decode("No status code found".to_owned()))?;
@@ -61,20 +67,20 @@ where
     // Convert httparse headers + body into a `http_types::Response` type.
     let version = httparse_res.version;
     let version = version.ok_or_else(|| error::decode("No version found".to_owned()))?;
-    if version != 1 { return Err(error::decode("Unsupported HTTP version".to_owned())) };
+    if version != 1 {
+        return Err(error::decode("Unsupported HTTP version".to_owned()));
+    };
 
     let mut headers = HeaderMap::new();
     for header in httparse_res.headers.iter() {
-        let value = HeaderValue::from_bytes(header.value)
-            .map_err(error::decode_err)?;
+        let value = HeaderValue::from_bytes(header.value).map_err(error::decode_err)?;
         let name: HeaderName = header.name.parse().map_err(error::decode_err)?;
         headers.append(name, value);
     }
 
     if headers.get(DATE).is_none() {
         let date = fmt_http_date(std::time::SystemTime::now());
-        let value = HeaderValue::from_str(&date)
-            .map_err(error::decode_err)?;
+        let value = HeaderValue::from_str(&date).map_err(error::decode_err)?;
         headers.insert(DATE, value);
     }
 
@@ -103,15 +109,15 @@ where
 
     // Check for Content-Length.
     if let Some(len) = headers.get(CONTENT_LENGTH).iter().last() {
-        let len = len.to_str()
+        let len = len
+            .to_str()
             .map_err(error::decode_err)?
             .parse::<usize>()
             .map_err(error::decode_err)?;
         res = Response::new(Body::from_reader(reader.take(len as u64), Some(len)));
     }
 
-    *res.status_mut() = StatusCode::from_u16(code)
-        .map_err(error::decode_err)?;
+    *res.status_mut() = StatusCode::from_u16(code).map_err(error::decode_err)?;
 
     *res.headers_mut() = headers;
 

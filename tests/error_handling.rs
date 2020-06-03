@@ -1,8 +1,7 @@
 mod test_client;
 
 use tophat::{
-    glitch,
-    glitch_code,
+    glitch, glitch_code,
     http::StatusCode,
     server::{
         accept,
@@ -26,8 +25,7 @@ fn test_request_manually_create_glitch() {
         );
 
         accept(testclient.clone(), |_req, resp_wtr| async move {
-            "one".parse::<usize>()
-                .map_err(|_| Glitch::bad_request())?;
+            "one".parse::<usize>().map_err(|_| Glitch::bad_request())?;
             let done = resp_wtr.send().await.unwrap();
 
             Ok(done)
@@ -90,8 +88,7 @@ fn test_request_glitch_with_context() {
         );
 
         accept(testclient.clone(), |_req, resp_wtr| async move {
-            "one".parse::<usize>()
-                .glitch_ctx(S_500, "custom error")?;
+            "one".parse::<usize>().glitch_ctx(S_500, "custom error")?;
             let done = resp_wtr.send().await.unwrap();
 
             Ok(done)
@@ -130,8 +127,7 @@ fn test_request_glitch_with_context() {
         );
 
         accept(testclient.clone(), |_req, resp_wtr| async move {
-            "one".parse::<usize>()
-                .map_err(|_| Glitch::bad_request())?;
+            "one".parse::<usize>().map_err(|_| Glitch::bad_request())?;
             let done = resp_wtr.send().await.unwrap();
 
             Ok(done)
@@ -152,8 +148,7 @@ fn test_request_glitch_macro() {
         );
 
         accept(testclient.clone(), |_req, resp_wtr| async move {
-            "one".parse::<usize>()
-                .map_err(|_| glitch!())?;
+            "one".parse::<usize>().map_err(|_| glitch!())?;
             let done = resp_wtr.send().await.unwrap();
 
             Ok(done)
@@ -170,7 +165,8 @@ fn test_request_glitch_macro() {
         );
 
         accept(testclient.clone(), |_req, resp_wtr| async move {
-            "one".parse::<usize>()
+            "one"
+                .parse::<usize>()
                 .map_err(|_| glitch!(StatusCode::BAD_REQUEST))?;
             let done = resp_wtr.send().await.unwrap();
 
@@ -188,7 +184,8 @@ fn test_request_glitch_macro() {
         );
 
         accept(testclient.clone(), |_req, resp_wtr| async move {
-            "one".parse::<usize>()
+            "one"
+                .parse::<usize>()
                 .map_err(|_| glitch!(StatusCode::BAD_REQUEST, "custom error"))?;
             let done = resp_wtr.send().await.unwrap();
 
@@ -211,7 +208,8 @@ fn test_request_glitch_code_macro() {
         );
 
         accept(testclient.clone(), |_req, resp_wtr| async move {
-            "one".parse::<usize>()
+            "one"
+                .parse::<usize>()
                 .map_err(|_| glitch_code!(400, "custom error"))?;
             let done = resp_wtr.send().await.unwrap();
 
@@ -235,7 +233,8 @@ fn test_request_glitch_code_macro_panic() {
         );
 
         accept(testclient.clone(), |_req, resp_wtr| async move {
-            "one".parse::<usize>()
+            "one"
+                .parse::<usize>()
                 .map_err(|_| glitch_code!(1, "custom error"))?;
             let done = resp_wtr.send().await.unwrap();
 

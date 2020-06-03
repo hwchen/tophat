@@ -19,8 +19,8 @@
 use cookie::Cookie;
 use futures_util::io::{AsyncRead, AsyncWrite};
 use http::header;
-use jsonwebtoken::{encode, decode, Header, Validation, EncodingKey, DecodingKey};
-use serde::{Serialize, Deserialize};
+use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
+use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
 use std::fmt;
 use std::time::Duration;
@@ -70,8 +70,9 @@ impl Identity {
             let token = decode::<Claims>(
                 &jwtstr,
                 &DecodingKey::from_secret(self.server_key.as_bytes()),
-                &Validation::default()
-            ).ok()?;
+                &Validation::default(),
+            )
+            .ok()?;
 
             //println!("{:?}", token);
             Some(token.claims.sub)
@@ -82,7 +83,8 @@ impl Identity {
 
     /// Set a token on the `ResponseWriter`, which gets set in a cookie, which authorizes the user.
     pub fn set_auth_token<W>(&self, user: &str, resp_wtr: &mut ResponseWriter<W>)
-        where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
+    where
+        W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
     {
         // in header set_cookie and provide token
         //
@@ -94,16 +96,14 @@ impl Identity {
             .http_only(self.cookie_http_only)
             .secure(self.cookie_secure)
             .finish();
-        resp_wtr.append_header(
-            header::SET_COOKIE,
-            cookie.to_string().parse().unwrap(),
-        );
+        resp_wtr.append_header(header::SET_COOKIE, cookie.to_string().parse().unwrap());
     }
 
     /// Set an expired token on the `ResponseWriter`, which gets set in a cookie, which will
     /// effectively "log out" the user.
     pub fn forget<W>(&self, resp_wtr: &mut ResponseWriter<W>)
-        where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
+    where
+        W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
     {
         // in header set_cookie and provide "blank" token
         //
@@ -115,10 +115,7 @@ impl Identity {
             .http_only(self.cookie_http_only)
             .secure(self.cookie_secure)
             .finish();
-        resp_wtr.append_header(
-            header::SET_COOKIE,
-            cookie.to_string().parse().unwrap(),
-        );
+        resp_wtr.append_header(header::SET_COOKIE, cookie.to_string().parse().unwrap());
     }
 
     fn make_token(
@@ -127,13 +124,22 @@ impl Identity {
         expiration: Option<u64>,
     ) -> Result<String, IdentityFail> {
         let claims = Claims {
-            exp: expiration.unwrap_or_else(|| self.expiration_time.as_secs() + current_numeric_date()),
-            iss: self.issuer.as_ref().cloned().unwrap_or_else(||"".to_owned()),
-            sub: user.map(|s| s.to_owned()).unwrap_or_else(||"".to_owned()),
+            exp: expiration
+                .unwrap_or_else(|| self.expiration_time.as_secs() + current_numeric_date()),
+            iss: self
+                .issuer
+                .as_ref()
+                .cloned()
+                .unwrap_or_else(|| "".to_owned()),
+            sub: user.map(|s| s.to_owned()).unwrap_or_else(|| "".to_owned()),
         };
 
-        encode(&Header::default(), &claims, &EncodingKey::from_secret(self.server_key.as_bytes()))
-            .map_err(IdentityFail::Encode)
+        encode(
+            &Header::default(),
+            &claims,
+            &EncodingKey::from_secret(self.server_key.as_bytes()),
+        )
+        .map_err(IdentityFail::Encode)
     }
 }
 
@@ -147,8 +153,8 @@ pub struct IdentityBuilder {
     expiration_time: Duration,
     cookie_name: Option<String>, // default "jwt"
     cookie_path: Option<String>, // default "/"
-    cookie_secure: bool, // default true
-    cookie_http_only: bool, // default true
+    cookie_secure: bool,         // default true
+    cookie_http_only: bool,      // default true
 }
 
 impl IdentityBuilder {
@@ -229,10 +235,7 @@ impl IdentityBuilder {
 }
 
 /// Gets the first cookie with the name
-fn get_cookie(
-    req: &Request,
-    name: &str,
-) -> Option<String> {
+fn get_cookie(req: &Request, name: &str) -> Option<String> {
     for cookie in req.headers().get_all(header::COOKIE) {
         let cookie = Cookie::parse(cookie.to_str().ok()?).ok()?;
         if cookie.name() == name {
@@ -249,7 +252,11 @@ fn get_cookie(
 /// (for sub-second resolution), but the jwt crate uses u64.
 fn current_numeric_date() -> u64 {
     use std::time::{SystemTime, UNIX_EPOCH};
-    SystemTime::now().duration_since(UNIX_EPOCH).ok().unwrap().as_secs()
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .ok()
+        .unwrap()
+        .as_secs()
 }
 
 // Claims to token

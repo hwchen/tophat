@@ -28,17 +28,23 @@
 //! - server header: access-control-max-age (86400s is one day)
 
 use futures_util::io::{AsyncRead, AsyncWrite};
-use headers::{AccessControlAllowHeaders, AccessControlAllowMethods, AccessControlExposeHeaders, HeaderMapExt, Origin};
-use http::{header::{self, HeaderMap, HeaderName, HeaderValue}, Method, StatusCode};
+use headers::{
+    AccessControlAllowHeaders, AccessControlAllowMethods, AccessControlExposeHeaders, HeaderMapExt,
+    Origin,
+};
+use http::{
+    header::{self, HeaderMap, HeaderName, HeaderValue},
+    Method, StatusCode,
+};
 use std::collections::HashSet;
 use std::convert::TryFrom;
 
 use crate::{
     server::{
         glitch::{Glitch, Result},
-        ResponseWriter
+        ResponseWriter,
     },
-    Request
+    Request,
 };
 
 /// Build a Cors
@@ -274,8 +280,8 @@ impl Cors {
     pub fn build() -> CorsBuilder {
         CorsBuilder {
             credentials: false,
-            allowed_headers:HashSet::new(),
-            exposed_headers:HashSet::new(),
+            allowed_headers: HashSet::new(),
+            exposed_headers: HashSet::new(),
             max_age: None,
             methods: HashSet::new(),
             origins: None,
@@ -295,7 +301,8 @@ impl Cors {
     ///
     /// See example `cors` to set up properly as middleware.
     pub fn validate<W>(&self, req: &Request, resp_wtr: &mut ResponseWriter<W>) -> Result<()>
-        where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
+    where
+        W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
     {
         let req_method = req.method();
         let req_origin = req.headers().get(header::ORIGIN);
@@ -318,7 +325,7 @@ impl Cors {
                         //Err(Forbidden::MethodNotAllowed);
                     }
                 } else {
-                println!("hit");
+                    println!("hit");
                     return Err(Glitch::bad_request());
                     // TODO error message?
                     // return Err(Forbidden::MethodNotAllowed);
@@ -358,7 +365,7 @@ impl Cors {
                 resp.headers = Some(headers);
 
                 Err(resp)
-            },
+            }
             (_, Some(origin)) => {
                 // Simple
                 if self.is_origin_allowed(origin) {
@@ -373,11 +380,11 @@ impl Cors {
 
                 // If origin is not allowed
                 Err(Glitch::bad_request())
-            },
+            }
             (_, _) => {
                 // All other requests are not Cors
                 Ok(())
-            },
+            }
         }
     }
 

@@ -37,21 +37,21 @@ impl fmt::Display for ClientError {
                 } else {
                     write!(f, "{:?}", msg)
                 }
-            },
+            }
             Decode(msg) => {
                 if let Some(ref err) = self.source {
                     write!(f, "{:?}: {}", msg, err)
                 } else {
                     write!(f, "{:?}", msg)
                 }
-            },
+            }
             Io => {
                 if let Some(ref err) = self.source {
                     write!(f, "Io Error: {}", err)
                 } else {
                     write!(f, "Io Error")
                 }
-            },
+            }
         }
     }
 }

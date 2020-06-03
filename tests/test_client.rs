@@ -41,7 +41,10 @@ impl TestClient {
     pub fn assert(self) {
         let write_buf = self.write_buf.lock().unwrap();
         let resp = remove_date(&write_buf.0);
-        assert_eq!(String::from_utf8(resp).unwrap(), String::from_utf8(self.expected).unwrap());
+        assert_eq!(
+            String::from_utf8(resp).unwrap(),
+            String::from_utf8(self.expected).unwrap()
+        );
     }
 
     pub fn assert_with_resp_date(self, date: &str) {
@@ -51,7 +54,10 @@ impl TestClient {
         resp_with_date.find(date).unwrap();
 
         let resp = remove_date(&write_buf.0);
-        assert_eq!(String::from_utf8(resp).unwrap(), String::from_utf8(self.expected).unwrap());
+        assert_eq!(
+            String::from_utf8(resp).unwrap(),
+            String::from_utf8(self.expected).unwrap()
+        );
     }
 }
 
@@ -146,7 +152,7 @@ impl<T> AsyncBufRead for Cursor<T>
 where
     T: AsRef<[u8]> + Unpin,
 {
-    fn poll_fill_buf(self: Pin<&mut Self>, _cx: &mut Context<'_>,) -> Poll<io::Result<&'_ [u8]>> {
+    fn poll_fill_buf(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<io::Result<&'_ [u8]>> {
         Poll::Ready(std::io::BufRead::fill_buf(&mut self.get_mut().inner))
     }
 
@@ -161,9 +167,13 @@ mod test {
 
     #[test]
     fn test_remove_date() {
-        let input = b"HTTP/1.1 200 OK\r\ncontent-length: 0\r\ndate: Thu, 07 May 2020 15:54:21 GMT\r\n\r\n";
+        let input =
+            b"HTTP/1.1 200 OK\r\ncontent-length: 0\r\ndate: Thu, 07 May 2020 15:54:21 GMT\r\n\r\n";
         let expected = b"HTTP/1.1 200 OK\r\ncontent-length: 0\r\n\r\n";
 
-        assert_eq!(String::from_utf8(remove_date(input)), String::from_utf8(expected.to_vec()));
+        assert_eq!(
+            String::from_utf8(remove_date(input)),
+            String::from_utf8(expected.to_vec())
+        );
     }
 }

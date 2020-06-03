@@ -3,19 +3,18 @@
 //! Careful, it's not completely automatic middleware, you currently have to use a switch statement
 //! to get the correct early-return behavior.
 
+use async_dup::Arc;
 use futures_util::io::{AsyncRead, AsyncWrite};
 use http::Method;
 use smol::{Async, Task};
 use std::net::TcpListener;
-use async_dup::Arc;
 use tophat::{
     server::{
         accept,
         cors::Cors,
         glitch::Result,
         router::{Router, RouterRequestExt},
-        ResponseWriter,
-        ResponseWritten,
+        ResponseWriter, ResponseWritten,
     },
     Request,
 };
@@ -51,7 +50,8 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                     // back to routing here
                     let res = router.route(req, resp_wtr).await;
                     res
-                }).await;
+                })
+                .await;
 
                 if let Err(err) = serve {
                     eprintln!("Error: {}", err);
@@ -63,8 +63,9 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     })
 }
 
-async fn hello_user< W>(req: Request, mut resp_wtr: ResponseWriter<W>) -> Result<ResponseWritten>
-    where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
+async fn hello_user<W>(req: Request, mut resp_wtr: ResponseWriter<W>) -> Result<ResponseWritten>
+where
+    W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
 {
     //smol::Timer::after(std::time::Duration::from_secs(5)).await;
 

@@ -1,16 +1,18 @@
+use async_dup::{Arc, Mutex};
 use futures_core::Stream;
 use smol::{Async, Task};
 use std::net::TcpListener;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::time::Duration;
-use async_dup::{Arc, Mutex};
 use tophat::server::accept;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     pretty_env_logger::init();
 
-    let ping_machine = Arc::new(Mutex::new(PingMachine { broadcasters: Vec::new() }));
+    let ping_machine = Arc::new(Mutex::new(PingMachine {
+        broadcasters: Vec::new(),
+    }));
 
     let listener = Async::<TcpListener>::bind("127.0.0.1:9999")?;
 
@@ -38,12 +40,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     resp_wtr.set_sse(client);
 
                     resp_wtr.send().await
-                }).await;
+                })
+                .await;
 
                 if let Err(err) = serve {
                     eprintln!("Error: {}", err);
                 }
-
             });
 
             task.detach();
@@ -76,10 +78,7 @@ struct Client(async_channel::Receiver<String>);
 impl Stream for Client {
     type Item = Result<String, std::io::Error>;
 
-    fn poll_next(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Option<Self::Item>> {
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         match Pin::new(&mut self.0).poll_next(cx) {
             Poll::Ready(Some(v)) => Poll::Ready(Some(Ok(v))),
             Poll::Ready(None) => Poll::Ready(None),

@@ -10,10 +10,10 @@ use futures_util::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
 use http::header::{self, HeaderName, HeaderValue};
 use std::fmt;
 
-use crate::error::Error;
-use crate::Request;
 use crate::body::Body;
 use crate::chunked::ChunkedDecoder;
+use crate::error::Error;
+use crate::Request;
 
 use super::response_writer::InnerResponse;
 
@@ -29,7 +29,7 @@ const SUPPORTED_TRANSFER_ENCODING: [&[u8]; 2] = [b"chunked", b"identity"];
 /// `None` means that no request was read.
 pub(crate) async fn decode<R>(reader: R) -> Result<Option<Request>, DecodeFail>
 where
-    R: AsyncRead + Unpin + Send + Sync + 'static
+    R: AsyncRead + Unpin + Send + Sync + 'static,
 {
     use DecodeFail::*;
 
@@ -40,7 +40,10 @@ where
 
     // Keep reading bytes from the stream until we hit the end of the head.
     loop {
-        let bytes_read = reader.read_until(LF, &mut buf).await.map_err(ConnectionLost)?;
+        let bytes_read = reader
+            .read_until(LF, &mut buf)
+            .await
+            .map_err(ConnectionLost)?;
 
         // No bytes read, no request.
         if bytes_read == 0 {
@@ -56,7 +59,9 @@ where
 
     // Convert head buf into an httparse instance, and validate.
     let status = httparse_req.parse(&buf).map_err(HttpHeadParse)?;
-    if status.is_partial() { return Err(HttpMalformedHead) };
+    if status.is_partial() {
+        return Err(HttpMalformedHead);
+    };
 
     // Check that req basics are here
     let method = http::Method::from_bytes(httparse_req.method.ok_or(HttpNoMethod)?.as_bytes())
@@ -84,28 +89,30 @@ where
         if header.name == header::CONTENT_LENGTH {
             content_length = Some(
                 std::str::from_utf8(header.value)
-                .map_err(|_| HttpInvalidContentLength)?
-                .parse::<usize>()
-                .map_err(|_| HttpInvalidContentLength)?
+                    .map_err(|_| HttpInvalidContentLength)?
+                    .parse::<usize>()
+                    .map_err(|_| HttpInvalidContentLength)?,
             );
         } else if header.name == header::TRANSFER_ENCODING {
             // return error if transfer encoding not supported
             // TODO this allocates to lowercase ascii. fix?
-            if !SUPPORTED_TRANSFER_ENCODING.contains(&header.value.to_ascii_lowercase().as_slice()) {
+            if !SUPPORTED_TRANSFER_ENCODING.contains(&header.value.to_ascii_lowercase().as_slice())
+            {
                 return Err(HttpUnsupportedTransferEncoding);
             }
 
             is_te = true;
-            is_chunked = String::from_utf8_lossy(header.value).trim().eq_ignore_ascii_case("chunked");
+            is_chunked = String::from_utf8_lossy(header.value)
+                .trim()
+                .eq_ignore_ascii_case("chunked");
         } else if header.name == header::HOST {
             has_host = true;
         }
 
-        req.headers_mut().expect("Request builder error")
-            .append(
-                HeaderName::from_bytes(header.name.as_bytes()).map_err(HttpHeaderName)?,
-                HeaderValue::from_bytes(header.value).map_err(HttpHeaderValue)?
-            );
+        req.headers_mut().expect("Request builder error").append(
+            HeaderName::from_bytes(header.name.as_bytes()).map_err(HttpHeaderName)?,
+            HeaderValue::from_bytes(header.value).map_err(HttpHeaderValue)?,
+        );
     }
 
     // Now handle more complex parts of HTTP protocol

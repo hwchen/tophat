@@ -3,14 +3,9 @@ mod test_client;
 use test_client::Cursor;
 
 use http::{
-    header::{
-        self,
-        HeaderName,
-        HeaderValue,
-    },
+    header::{self, HeaderName, HeaderValue},
     method::Method,
-    Version,
-    Uri,
+    Uri, Version,
 };
 use tophat::{server::accept, Body};
 
@@ -54,8 +49,14 @@ fn test_request_basic_with_body_and_query() {
             assert_eq!(req.uri().query(), Some("one=two"));
             assert_eq!(req.version(), Version::HTTP_11);
             assert_eq!(req.method(), Method::GET);
-            assert_eq!(req.headers().get(header::CONTENT_LENGTH), Some(&HeaderValue::from_bytes(b"6").unwrap()));
-            assert_eq!(req.headers().get(header::HOST), Some(&HeaderValue::from_bytes(b"example.org").unwrap()));
+            assert_eq!(
+                req.headers().get(header::CONTENT_LENGTH),
+                Some(&HeaderValue::from_bytes(b"6").unwrap())
+            );
+            assert_eq!(
+                req.headers().get(header::HOST),
+                Some(&HeaderValue::from_bytes(b"example.org").unwrap())
+            );
 
             let body = req.into_body().into_string().await.unwrap();
 
@@ -211,12 +212,10 @@ fn test_transfer_encoding_unsupported() {
 
         match res {
             Ok(_) => panic!(),
-            Err(err) => {
-                match err {
-                    tophat::Error::ConnectionClosedUnsupportedTransferEncoding => (),
-                    _ => panic!(),
-                }
-            }
+            Err(err) => match err {
+                tophat::Error::ConnectionClosedUnsupportedTransferEncoding => (),
+                _ => panic!(),
+            },
         }
 
         testclient.assert();
@@ -294,7 +293,10 @@ fn test_response_date() {
         );
 
         accept(testclient.clone(), |_req, mut resp_wtr| async move {
-            resp_wtr.append_header(header::DATE, "Wed, 21 Oct 2015 07:28:00 GMT".parse().unwrap());
+            resp_wtr.append_header(
+                header::DATE,
+                "Wed, 21 Oct 2015 07:28:00 GMT".parse().unwrap(),
+            );
             resp_wtr.send().await
         })
         .await
@@ -345,18 +347,15 @@ fn test_decode_transfer_encoding_chunked() {
         accept(testclient.clone(), |req, resp_wtr| async move {
             // If you want to wait for trailer, need to use this method.
             // Reading body and trailer separately will run into borrow errors
-            let (body, trailer) = req.into_body()
-                .into_string_with_trailer()
-                .await
-                .unwrap();
+            let (body, trailer) = req.into_body().into_string_with_trailer().await.unwrap();
 
             let trailer = trailer.unwrap().unwrap();
 
             assert_eq!(body, "MozillaDeveloperNetwork");
             assert_eq!(
                 trailer.headers.iter().collect::<Vec<_>>(),
-                vec![
-                    (&HeaderName::from_bytes(b"Expires").unwrap(),
+                vec![(
+                    &HeaderName::from_bytes(b"Expires").unwrap(),
                     &HeaderValue::from_bytes(b"Wed, 21 Oct 2015 07:28:00 GMT").unwrap(),
                 )]
             );
@@ -387,10 +386,7 @@ fn test_decode_transfer_encoding_chunked() {
         accept(testclient.clone(), |req, resp_wtr| async move {
             // If you want to wait for trailer, need to use this method.
             // Reading body and trailer separately will run into borrow errors
-            let (body, trailer) = req.into_body()
-                .into_string_with_trailer()
-                .await
-                .unwrap();
+            let (body, trailer) = req.into_body().into_string_with_trailer().await.unwrap();
 
             let trailer = trailer.unwrap().unwrap();
 

@@ -1,17 +1,16 @@
+use async_dup::Arc;
 use futures_util::io::{AsyncRead, AsyncWrite};
 use http::Method;
 use smol::{Async, Task};
 use std::net::TcpListener;
 use std::time::Duration;
-use async_dup::Arc;
 use tophat::{
     server::{
         accept,
-        identity::Identity,
         glitch::Result,
+        identity::Identity,
         router::{Router, RouterRequestExt},
-        ResponseWriter,
-        ResponseWritten,
+        ResponseWriter, ResponseWritten,
     },
     Request,
 };
@@ -46,7 +45,8 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                 let serve = accept(stream, |req, resp_wtr| async {
                     let res = router.route(req, resp_wtr).await;
                     res
-                }).await;
+                })
+                .await;
 
                 if let Err(err) = serve {
                     eprintln!("Error: {}", err);
@@ -59,7 +59,8 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 }
 
 async fn login_user<W>(req: Request, mut resp_wtr: ResponseWriter<W>) -> Result<ResponseWritten>
-    where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
+where
+    W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
 {
     let identity = req.data::<Identity>().unwrap();
     let user = req.get_param("user").unwrap();
@@ -77,7 +78,8 @@ async fn login_user<W>(req: Request, mut resp_wtr: ResponseWriter<W>) -> Result<
 }
 
 async fn logout_user<W>(req: Request, mut resp_wtr: ResponseWriter<W>) -> Result<ResponseWritten>
-    where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
+where
+    W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
 {
     // Since we're using jwt tokens, we don't need to do a check on some session store to remove
     // the session; just send the "forget" cookie.
@@ -94,7 +96,8 @@ async fn logout_user<W>(req: Request, mut resp_wtr: ResponseWriter<W>) -> Result
 
 // Says hello to user based on user login name
 async fn hello_user<W>(req: Request, mut resp_wtr: ResponseWriter<W>) -> Result<ResponseWritten>
-    where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
+where
+    W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
 {
     let identity = req.data::<Identity>().unwrap();
 
@@ -105,7 +108,7 @@ async fn hello_user<W>(req: Request, mut resp_wtr: ResponseWriter<W>) -> Result<
         None => {
             resp_wtr.set_code(400);
             return resp_wtr.send().await;
-        },
+        }
     };
 
     resp_wtr.set_text(format!("Hello {}", user));

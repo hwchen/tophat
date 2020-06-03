@@ -1,6 +1,6 @@
+use async_dup::Arc;
 use smol::{Async, Task};
 use std::net::TcpListener;
-use async_dup::Arc;
 use tophat::server::accept;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -12,18 +12,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let stream = Arc::new(stream);
 
             let task = Task::spawn(async move {
-                let serve = accept(stream, |_req, resp_wtr| async {
-                    resp_wtr.send().await
-                }).await;
+                let serve = accept(stream, |_req, resp_wtr| async { resp_wtr.send().await }).await;
 
                 if let Err(err) = serve {
                     eprintln!("Error: {}", err);
                 }
-
             });
 
             task.detach();
         }
     })
 }
-

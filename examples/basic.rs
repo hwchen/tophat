@@ -1,7 +1,7 @@
+use async_dup::Arc;
 use http::header;
 use smol::{Async, Task};
 use std::net::TcpListener;
-use async_dup::Arc;
 use tophat::server::accept;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -27,12 +27,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     resp_wtr.set_body(resp_body.into());
 
                     resp_wtr.send().await
-                }).await;
+                })
+                .await;
 
                 if let Err(err) = serve {
                     eprintln!("Error: {}", err);
                 }
-
             });
 
             task.detach();

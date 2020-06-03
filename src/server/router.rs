@@ -13,20 +13,19 @@
 // - So basically, I think that my code should be fine, the fn's code is just a reference, and
 // then runtime-code gets filled in (the appropriate params and stuff).
 
-
 //! Very Basic router
 //!
 //! - basic routing (no nesting)
 //! - holds global data
 //! - no extractors (you've got to find all the stuff you want attached to the `Request`)
 
+use crate::server::{Request, ResponseWriter, ResponseWritten, Result};
+use async_dup::Arc;
 use futures_util::io::{AsyncRead, AsyncWrite};
 use http::{Method, StatusCode};
+use path_tree::PathTree;
 use std::future::Future;
 use std::pin::Pin;
-use path_tree::PathTree;
-use async_dup::Arc;
-use crate::server::{Request, ResponseWriter, ResponseWritten, Result};
 
 /// Convenience type for params.
 ///
@@ -36,14 +35,16 @@ pub type Params = Vec<(String, String)>;
 /// A minimal router
 #[derive(Clone)]
 pub struct Router<W>
-    where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
+where
+    W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
 {
     tree: Arc<PathTree<Box<dyn Endpoint<W>>>>,
     data: Arc<Option<DataMap>>,
 }
 
 impl<W> Router<W>
-    where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
+where
+    W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
 {
     /// Build a router
     pub fn build() -> RouterBuilder<W> {
@@ -51,12 +52,19 @@ impl<W> Router<W>
     }
 
     /// Call this to route a request
-    pub async fn route(&self, mut req: Request, mut resp_wtr: ResponseWriter<W>) -> Result<ResponseWritten> {
+    pub async fn route(
+        &self,
+        mut req: Request,
+        mut resp_wtr: ResponseWriter<W>,
+    ) -> Result<ResponseWritten> {
         let path = "/".to_owned() + req.method().as_str() + req.uri().path();
 
         match self.tree.find(&path) {
             Some((endpoint, params)) => {
-                let params: Vec<(String, String)> = params.into_iter().map(|(a,b)| (a.to_owned(), b.to_owned())).collect();
+                let params: Vec<(String, String)> = params
+                    .into_iter()
+                    .map(|(a, b)| (a.to_owned(), b.to_owned()))
+                    .collect();
 
                 // a place to store data and params
                 // extensions is a type map, and then
@@ -68,25 +76,27 @@ impl<W> Router<W>
                 extensions_mut.insert(params);
 
                 endpoint.call(req, resp_wtr).await
-            },
+            }
             None => {
                 resp_wtr.set_status(StatusCode::NOT_FOUND);
                 resp_wtr.send().await
-            },
+            }
         }
     }
 }
 
 /// Build a router
 pub struct RouterBuilder<W>
-    where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
+where
+    W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
 {
     tree: PathTree<Box<dyn Endpoint<W>>>,
     data: Option<type_map::concurrent::TypeMap>,
 }
 
 impl<W> RouterBuilder<W>
-    where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
+where
+    W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
 {
     fn new() -> Self {
         Self {
@@ -125,7 +135,10 @@ impl<W> RouterBuilder<W>
     ///
     /// Requires `RouterRequestExt`.
     pub fn wrapped_data<T: Send + Sync + 'static>(mut self, data: T) -> Self {
-        let mut map = self.data.take().unwrap_or_else(type_map::concurrent::TypeMap::new);
+        let mut map = self
+            .data
+            .take()
+            .unwrap_or_else(type_map::concurrent::TypeMap::new);
         map.insert(data);
         self.data = Some(map);
         self
@@ -143,10 +156,15 @@ impl<W> RouterBuilder<W>
 /// A trait for all endpoints, so that the user can just use any suitable closure or fn in the
 /// method for building a router.
 pub trait Endpoint<W>: Send + Sync + 'static
-    where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
+where
+    W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
 {
     /// Invoke the endpoint within the given context
-    fn call<'a>(&'a self, req: Request, resp_wtr: ResponseWriter<W>) -> BoxFuture<'a, Result<ResponseWritten>>;
+    fn call<'a>(
+        &'a self,
+        req: Request,
+        resp_wtr: ResponseWriter<W>,
+    ) -> BoxFuture<'a, Result<ResponseWritten>>;
 }
 
 impl<F: Send + Sync + 'static, Fut, Res, W> Endpoint<W> for F
@@ -156,7 +174,11 @@ where
     Res: Into<ResponseWritten>,
     W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
 {
-    fn call<'a>(&'a self, req: Request, resp: ResponseWriter<W>) -> BoxFuture<'a, Result<ResponseWritten>> {
+    fn call<'a>(
+        &'a self,
+        req: Request,
+        resp: ResponseWriter<W>,
+    ) -> BoxFuture<'a, Result<ResponseWritten>> {
         let fut = (self)(req, resp);
         Box::pin(async move {
             let res = fut.await?;
@@ -211,7 +233,10 @@ pub trait RouterRequestExt {
 
 impl RouterRequestExt for crate::Request {
     fn data<T: Send + Sync + 'static>(&self) -> Option<Data<T>> {
-        self.extensions().get::<DataMap>().and_then(|x| x.0.get::<Data<T>>()).cloned()
+        self.extensions()
+            .get::<DataMap>()
+            .and_then(|x| x.0.get::<Data<T>>())
+            .cloned()
     }
 
     fn params(&self) -> Option<&Params> {

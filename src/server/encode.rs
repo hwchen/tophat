@@ -57,15 +57,27 @@ impl Encoder {
         } else {
             None
         };
-        let headers = self.resp.headers.iter()
+        let headers = self
+            .resp
+            .headers
+            .iter()
             .filter(|(h, _)| **h != header::CONTENT_LENGTH)
             .filter(|(h, _)| **h != header::TRANSFER_ENCODING);
 
-        std::io::Write::write_fmt(&mut self.head_buf, format_args!("{:?} {}\r\n", version, status))?;
+        std::io::Write::write_fmt(
+            &mut self.head_buf,
+            format_args!("{:?} {}\r\n", version, status),
+        )?;
         if let Some(len) = self.content_length {
-            std::io::Write::write_fmt(&mut self.head_buf, format_args!("content-length: {}\r\n", len))?;
+            std::io::Write::write_fmt(
+                &mut self.head_buf,
+                format_args!("content-length: {}\r\n", len),
+            )?;
         } else {
-            std::io::Write::write_fmt(&mut self.head_buf, format_args!("transfer-encoding: chunked\r\n"))?;
+            std::io::Write::write_fmt(
+                &mut self.head_buf,
+                format_args!("transfer-encoding: chunked\r\n"),
+            )?;
         }
         if let Some(date) = date {
             std::io::Write::write_fmt(&mut self.head_buf, format_args!("date: {}\r\n", date))?;
@@ -83,15 +95,16 @@ impl Encoder {
         self.encode_head(cx, buf)
     }
 
-    fn encode_head(&mut self, cx: &mut Context<'_>, buf: &mut [u8]) -> Poll<std::io::Result<usize>> {
+    fn encode_head(
+        &mut self,
+        cx: &mut Context<'_>,
+        buf: &mut [u8],
+    ) -> Poll<std::io::Result<usize>> {
         // Each read is not guaranteed to read the entire head_buf. So we keep track of our place
         // if the read is partial, so that it can be continued on the next poll.
 
         // Copy to to buf the shorter of (remaining head_buf) or buf
-        let len = std::cmp::min(
-            self.head_buf.len() - self.head_bytes_read,
-            buf.len()
-        );
+        let len = std::cmp::min(self.head_buf.len() - self.head_bytes_read, buf.len());
         let range = self.head_bytes_read..self.head_bytes_read + len;
         buf[0..len].copy_from_slice(&self.head_buf[range]);
         self.bytes_read += len;
@@ -116,7 +129,11 @@ impl Encoder {
         }
     }
 
-    fn encode_fixed_body(&mut self, cx: &mut Context<'_>, buf: &mut [u8]) -> Poll<std::io::Result<usize>> {
+    fn encode_fixed_body(
+        &mut self,
+        cx: &mut Context<'_>,
+        buf: &mut [u8],
+    ) -> Poll<std::io::Result<usize>> {
         // Remember that from here, the buf has not been cleared yet, so consider the head as the
         // first part of the buf.
 
@@ -125,12 +142,14 @@ impl Encoder {
             return Poll::Ready(Ok(self.bytes_read));
         }
 
-        let content_length = self.content_length.expect("content_length.is_some() checked before entering method");
+        let content_length = self
+            .content_length
+            .expect("content_length.is_some() checked before entering method");
 
         // Copy to to buf the shorter of (remaining body + any previous reads) or buf
         let upper_limit = std::cmp::min(
             self.bytes_read + content_length - self.body_bytes_read,
-            buf.len()
+            buf.len(),
         );
         let range = self.bytes_read..upper_limit;
         let inner_read = Pin::new(&mut self.resp.body).poll_read(cx, &mut buf[range]);
@@ -138,15 +157,13 @@ impl Encoder {
             Poll::Ready(Ok(n)) => {
                 self.bytes_read += n;
                 self.body_bytes_read += n;
-            },
+            }
             Poll::Ready(Err(err)) => {
                 return Poll::Ready(Err(err));
-            },
-            Poll::Pending => {
-                 match self.bytes_read {
-                      0 => return Poll::Pending,
-                      n => return Poll::Ready(Ok(n)),
-                 }
+            }
+            Poll::Pending => match self.bytes_read {
+                0 => return Poll::Pending,
+                n => return Poll::Ready(Ok(n)),
             },
         }
 
@@ -161,7 +178,11 @@ impl Encoder {
 
     /// Encode an AsyncBufRead using "chunked" framing. This is used for streams
     /// whose length is not known up front.
-    fn encode_chunked_body(&mut self, cx: &mut Context<'_>, buf: &mut [u8]) -> Poll<std::io::Result<usize>> {
+    fn encode_chunked_body(
+        &mut self,
+        cx: &mut Context<'_>,
+        buf: &mut [u8],
+    ) -> Poll<std::io::Result<usize>> {
         let buf = &mut buf[self.bytes_read..];
         match self.chunked.encode(&mut self.resp.body, cx, buf) {
             Poll::Ready(Ok(read)) => {

@@ -2,9 +2,9 @@
 
 use std::error::Error;
 use std::fmt;
+use std::future::Future;
 use std::pin::Pin;
 use std::time::Duration;
-use std::future::Future;
 
 use futures_timer::Delay;
 use pin_project_lite::pin_project;
@@ -35,7 +35,10 @@ pin_project! {
 impl<F> TimeoutFuture<F> {
     #[allow(dead_code)]
     pub(crate) fn new(future: F, dur: Duration) -> TimeoutFuture<F> {
-        TimeoutFuture { future, delay: Delay::new(dur) }
+        TimeoutFuture {
+            future,
+            delay: Delay::new(dur),
+        }
     }
 }
 

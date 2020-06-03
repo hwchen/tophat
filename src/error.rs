@@ -34,7 +34,9 @@ impl fmt::Display for Error {
         use Error::*;
         match self {
             BodyConversion(err) => write!(f, "Error converting body: {}", err),
-            ConnectionClosedUnsupportedTransferEncoding => write!(f, "Connection closed: Unsupported Transfer Encoding"),
+            ConnectionClosedUnsupportedTransferEncoding => {
+                write!(f, "Connection closed: Unsupported Transfer Encoding")
+            }
             ConnectionLost(err) => write!(f, "Connection lost: {}", err),
         }
     }

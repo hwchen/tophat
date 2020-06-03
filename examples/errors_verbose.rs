@@ -1,16 +1,14 @@
+use async_dup::Arc;
 use futures_util::io::{AsyncRead, AsyncWrite};
 use http::{Method, StatusCode};
 use smol::{Async, Task};
 use std::net::TcpListener;
-use async_dup::Arc;
 use tophat::{
     server::{
         accept_with_opts,
         glitch::{Glitch, GlitchExt, Result},
         router::Router,
-        ResponseWriter,
-        ResponseWritten,
-        ServerOpts,
+        ResponseWriter, ResponseWritten, ServerOpts,
     },
     Request,
 };
@@ -28,7 +26,11 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let router = Router::build()
         .data("Data from datastore")
         .at(Method::GET, "/database_error", database_error)
-        .at(Method::GET, "/database_error_context", database_error_context)
+        .at(
+            Method::GET,
+            "/database_error_context",
+            database_error_context,
+        )
         .at(Method::GET, "/missing_data", missing_data)
         .finish();
 
@@ -46,7 +48,8 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
                 let serve = accept_with_opts(stream, opts, |req, resp_wtr| async {
                     let res = router.route(req, resp_wtr).await;
                     res
-                }).await;
+                })
+                .await;
 
                 if let Err(err) = serve {
                     eprintln!("Error: {}", err);
@@ -59,30 +62,37 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 }
 
 async fn database_error<W>(_req: Request, resp_wtr: ResponseWriter<W>) -> Result<ResponseWritten>
-    where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
+where
+    W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
 {
     use std::io;
 
-    let failed_db: std::result::Result<(), _> = Err(io::Error::new(io::ErrorKind::Other, "The database crashed"));
+    let failed_db: std::result::Result<(), _> =
+        Err(io::Error::new(io::ErrorKind::Other, "The database crashed"));
     failed_db?;
 
     resp_wtr.send().await
 }
 
-async fn database_error_context<W>(_req: Request, resp_wtr: ResponseWriter<W>) -> Result<ResponseWritten>
-    where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
+async fn database_error_context<W>(
+    _req: Request,
+    resp_wtr: ResponseWriter<W>,
+) -> Result<ResponseWritten>
+where
+    W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
 {
     use std::io;
 
-    let failed_db: std::result::Result<(), _> = Err(io::Error::new(io::ErrorKind::Other, "The database crashed"));
-    failed_db
-        .glitch_ctx(S_500, "looking for user")?;
+    let failed_db: std::result::Result<(), _> =
+        Err(io::Error::new(io::ErrorKind::Other, "The database crashed"));
+    failed_db.glitch_ctx(S_500, "looking for user")?;
 
     resp_wtr.send().await
 }
 
 async fn missing_data<W>(_req: Request, resp_wtr: ResponseWriter<W>) -> Result<ResponseWritten>
-    where W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
+where
+    W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
 {
     let failed_db = None;
 
@@ -92,4 +102,3 @@ async fn missing_data<W>(_req: Request, resp_wtr: ResponseWriter<W>) -> Result<R
 
     resp_wtr.send().await
 }
-

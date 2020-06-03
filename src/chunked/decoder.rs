@@ -11,8 +11,8 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 
-use futures_io::AsyncRead;
 use byte_pool::{Block, BytePool};
+use futures_io::AsyncRead;
 
 use crate::trailers::{Trailers, TrailersSender};
 
@@ -490,7 +490,8 @@ fn decode_trailer(buffer: Block<'static>, pos: &Range<usize>) -> io::Result<Deco
         Ok(Status::Complete((used, headers))) => {
             let mut trailers = Trailers::new();
             for header in headers {
-                trailers.headers.append( // TODO should this be insert?
+                trailers.headers.append(
+                    // TODO should this be insert?
                     HeaderName::from_bytes(header.name.as_bytes())
                         .map_err(|err| io::Error::new(io::ErrorKind::Other, err.to_string()))?,
                     HeaderValue::from_bytes(header.value)
@@ -603,11 +604,13 @@ mod tests {
             let trailer = r.recv().await.unwrap().unwrap();
             assert_eq!(
                 trailer.headers.iter().collect::<Vec<_>>(),
-                vec![
-                    (&HeaderName::from_bytes(b"Expires")
-                        .map_err(|err| io::Error::new(io::ErrorKind::Other, err.to_string())).unwrap(),
+                vec![(
+                    &HeaderName::from_bytes(b"Expires")
+                        .map_err(|err| io::Error::new(io::ErrorKind::Other, err.to_string()))
+                        .unwrap(),
                     &HeaderValue::from_bytes(b"Wed, 21 Oct 2015 07:28:00 GMT")
-                        .map_err(|err| io::Error::new(io::ErrorKind::Other, err.to_string())).unwrap(),
+                        .map_err(|err| io::Error::new(io::ErrorKind::Other, err.to_string()))
+                        .unwrap(),
                 )]
             );
         });

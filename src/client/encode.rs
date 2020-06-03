@@ -1,11 +1,11 @@
 use futures_util::io::{AsyncRead, AsyncWriteExt};
+use http::{header::HOST, Method, Request};
 use std::io;
 use std::pin::Pin;
 use std::task::{Context, Poll};
-use http::{header::HOST, Method, Request};
 
-use crate::Body;
 use super::{error, ClientError};
+use crate::Body;
 
 /// An HTTP encoder.
 #[doc(hidden)]
@@ -50,7 +50,8 @@ impl Encoder {
 
         let val = format!("{} {} HTTP/1.1\r\n", req.method(), url);
         log::trace!("> {}", &val);
-        buf.write_all(val.as_bytes()).await
+        buf.write_all(val.as_bytes())
+            .await
             .map_err(error::encode_io)?;
 
         if req.headers().get(HOST).is_none() {
@@ -65,7 +66,8 @@ impl Encoder {
             };
 
             log::trace!("> {}", &val);
-            buf.write_all(val.as_bytes()).await
+            buf.write_all(val.as_bytes())
+                .await
                 .map_err(error::encode_io)?;
         }
 
@@ -73,7 +75,8 @@ impl Encoder {
         if req.method() == Method::CONNECT {
             let val = "proxy-connection: keep-alive\r\n".to_owned();
             log::trace!("> {}", &val);
-            buf.write_all(val.as_bytes()).await
+            buf.write_all(val.as_bytes())
+                .await
                 .map_err(error::encode_io)?;
         }
 
@@ -82,7 +85,8 @@ impl Encoder {
         if let Some(len) = req.body().length {
             let val = format!("content-length: {}\r\n", len);
             log::trace!("> {}", &val);
-            buf.write_all(val.as_bytes()).await
+            buf.write_all(val.as_bytes())
+                .await
                 .map_err(error::encode_io)?;
         } else {
             // write!(&mut buf, "Transfer-Encoding: chunked\r\n")?;
@@ -92,18 +96,17 @@ impl Encoder {
         }
 
         for (header, value) in req.headers().iter() {
-            buf.write_all(header.as_str().as_bytes()).await
+            buf.write_all(header.as_str().as_bytes())
+                .await
                 .map_err(error::encode_io)?;
-            buf.write_all(b": ").await
+            buf.write_all(b": ").await.map_err(error::encode_io)?;
+            buf.write_all(value.as_bytes())
+                .await
                 .map_err(error::encode_io)?;
-            buf.write_all(value.as_bytes()).await
-                .map_err(error::encode_io)?;
-            buf.write_all(b"\r\n").await
-                .map_err(error::encode_io)?;
+            buf.write_all(b"\r\n").await.map_err(error::encode_io)?;
         }
 
-        buf.write_all(b"\r\n").await
-            .map_err(error::encode_io)?;
+        buf.write_all(b"\r\n").await.map_err(error::encode_io)?;
 
         Ok(Self {
             body: req.into_body(),
@@ -137,8 +140,7 @@ impl AsyncRead for Encoder {
         }
 
         if !self.body_done {
-            let inner_poll_result =
-                Pin::new(&mut self.body).poll_read(cx, &mut buf[bytes_read..]);
+            let inner_poll_result = Pin::new(&mut self.body).poll_read(cx, &mut buf[bytes_read..]);
             let n = match inner_poll_result {
                 Poll::Ready(Ok(n)) => n,
                 Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),

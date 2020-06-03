@@ -18,8 +18,7 @@ where
 {
     let mut req = Encoder::encode(req).await?;
 
-    io::copy(&mut req, &mut stream).await
-        .map_err(error::io)?;
+    io::copy(&mut req, &mut stream).await.map_err(error::io)?;
 
     let res = decode(stream).await?;
 

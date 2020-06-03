@@ -56,7 +56,8 @@ impl InnerResponse {
     }
 
     pub(crate) async fn send<W>(self, writer: W) -> Result<ResponseWritten, Glitch>
-        where W: AsyncWrite + Clone + Send + Sync + Unpin + 'static,
+    where
+        W: AsyncWrite + Clone + Send + Sync + Unpin + 'static,
     {
         let mut encoder = Encoder::encode(self);
         let mut writer = writer;
@@ -66,7 +67,7 @@ impl InnerResponse {
                 // only log, don't break connection here. If connection is really closed, then the
                 // next decode will break the loop receiving requests
                 log::error!("Error sending response: {}", err);
-            },
+            }
         }
 
         Ok(ResponseWritten {})
@@ -167,16 +168,27 @@ where
         self
     }
 
-
     /// Append header to response. Will not replace a header with the same header name.
-    pub fn append_header(&mut self, header_name: impl IntoHeaderName, header_value: HeaderValue) -> &mut Self {
-        self.response.headers_mut().append(header_name, header_value);
+    pub fn append_header(
+        &mut self,
+        header_name: impl IntoHeaderName,
+        header_value: HeaderValue,
+    ) -> &mut Self {
+        self.response
+            .headers_mut()
+            .append(header_name, header_value);
         self
     }
 
     /// Insert header to response. Replaces a header with the same header name.
-    pub fn insert_header(&mut self, header_name: impl IntoHeaderName, header_value: HeaderValue) -> &mut Self {
-        self.response.headers_mut().insert(header_name, header_value);
+    pub fn insert_header(
+        &mut self,
+        header_name: impl IntoHeaderName,
+        header_value: HeaderValue,
+    ) -> &mut Self {
+        self.response
+            .headers_mut()
+            .insert(header_name, header_value);
         self
     }
 
@@ -199,7 +211,7 @@ where
     }
 
     /// Retrieve a reference to the `Response` in the `ResponseWriter`
-    pub fn response(& self) -> &Response {
+    pub fn response(&self) -> &Response {
         &self.response
     }
 
@@ -210,7 +222,9 @@ where
     ///
     pub fn set_text(&mut self, text: String) -> &mut Self {
         *self.response.body_mut() = text.into();
-        self.response.headers_mut().insert(http::header::CONTENT_TYPE, "text/plain".parse().unwrap());
+        self.response
+            .headers_mut()
+            .insert(http::header::CONTENT_TYPE, "text/plain".parse().unwrap());
         self
     }
 
@@ -219,16 +233,14 @@ where
     ///
     /// Takes a `futures::Stream`, and `futures::TryStreamExt` must be in scope.
     pub fn set_sse<S: 'static>(&mut self, stream: S)
-        where S: TryStreamExt<Error = std::io::Error> + Send + Sync + Unpin,
-            S::Ok: AsRef<[u8]> + Send + Sync,
+    where
+        S: TryStreamExt<Error = std::io::Error> + Send + Sync + Unpin,
+        S::Ok: AsRef<[u8]> + Send + Sync,
     {
         let stream = stream.into_async_read();
 
         self.set_body(Body::from_reader(stream, None));
-        self.insert_header(
-            "content-type",
-            "text/event-stream".parse().unwrap(),
-        );
+        self.insert_header("content-type", "text/event-stream".parse().unwrap());
     }
 }
 
