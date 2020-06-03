@@ -25,7 +25,7 @@ use http::{Method, StatusCode};
 use std::future::Future;
 use std::pin::Pin;
 use path_tree::PathTree;
-use piper::Arc;
+use async_dup::Arc;
 use crate::server::{Request, ResponseWriter, ResponseWritten, Result};
 
 /// Convenience type for params.

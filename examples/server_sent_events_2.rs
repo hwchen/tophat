@@ -4,7 +4,7 @@ use std::net::TcpListener;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::time::Duration;
-use piper::Arc;
+use async_dup::Arc;
 use tophat::server::accept;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -19,24 +19,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             let task = Task::spawn(async move {
                 let serve = accept(stream, |_req, mut resp_wtr| async {
-                    let (tx, rx) = piper::chan(100);
+                    let (tx, rx) = async_channel::bounded(100);
                     let client = Client(rx);
                     resp_wtr.set_sse(client);
 
                     // a one-shot to send the result of the resp_wtr, so that we can exit the
                     // endpoint.
-                    let (tx_res, rx_res) = piper::chan(1);
+                    let (tx_res, rx_res) = async_channel::bounded(1);
 
                     smol::Task::spawn(async move {
                         let sse_res = resp_wtr.send().await;
-                        tx_res.send(sse_res).await;
+                        let _ = tx_res.send(sse_res).await;
                     }).detach();
 
-                    tx.send("data: lorem\n\n".to_owned()).await;
+                    let _ = tx.send("data: lorem\n\n".to_owned()).await;
 
                     smol::Timer::after(Duration::from_secs(1)).await;
 
-                    tx.send("data: ipsum\n\n".to_owned()).await;
+                    let _ = tx.send("data: ipsum\n\n".to_owned()).await;
 
                     // This rx will never receive because the stream will never close.
                     //
@@ -59,7 +59,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     })
 }
 
-struct Client(piper::Receiver<String>);
+struct Client(async_channel::Receiver<String>);
 
 impl Stream for Client {
     type Item = Result<String, std::io::Error>;

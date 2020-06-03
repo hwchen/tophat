@@ -4,7 +4,7 @@ use std::net::TcpListener;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::time::Duration;
-use piper::{Arc, Mutex};
+use async_dup::{Arc, Mutex};
 use tophat::server::accept;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -52,18 +52,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 struct PingMachine {
-    broadcasters: Vec<piper::Sender<String>>,
+    broadcasters: Vec<async_channel::Sender<String>>,
 }
 
 impl PingMachine {
     async fn ping(&self) {
         for tx in &self.broadcasters {
-            tx.send("data: ping\n\n".to_owned()).await
+            let _ = tx.send("data: ping\n\n".to_owned()).await;
         }
     }
 
     fn add_client(&mut self) -> Client {
-        let (tx, rx) = piper::chan(10);
+        let (tx, rx) = async_channel::bounded(10);
 
         self.broadcasters.push(tx);
 
@@ -71,7 +71,7 @@ impl PingMachine {
     }
 }
 
-struct Client(piper::Receiver<String>);
+struct Client(async_channel::Receiver<String>);
 
 impl Stream for Client {
     type Item = Result<String, std::io::Error>;

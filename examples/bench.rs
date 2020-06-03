@@ -1,6 +1,6 @@
 use smol::{Async, Task};
 use std::net::TcpListener;
-use piper::Arc;
+use async_dup::Arc;
 use tophat::server::accept;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

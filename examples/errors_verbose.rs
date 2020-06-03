@@ -2,7 +2,7 @@ use futures_util::io::{AsyncRead, AsyncWrite};
 use http::{Method, StatusCode};
 use smol::{Async, Task};
 use std::net::TcpListener;
-use piper::Arc;
+use async_dup::Arc;
 use tophat::{
     server::{
         accept_with_opts,

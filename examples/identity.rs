@@ -3,7 +3,7 @@ use http::Method;
 use smol::{Async, Task};
 use std::net::TcpListener;
 use std::time::Duration;
-use piper::Arc;
+use async_dup::Arc;
 use tophat::{
     server::{
         accept,

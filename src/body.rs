@@ -16,15 +16,15 @@ pin_project_lite::pin_project! {
         #[pin]
         pub(crate) reader: Box<dyn AsyncBufRead + Unpin + Send + Sync + 'static>,
         pub(crate) length: Option<usize>,
-        trailer_sender: Option<piper::Sender<Result<Trailers, Error>>>,
-        trailer_receiver: piper::Receiver<Result<Trailers, Error>>,
+        trailer_sender: Option<async_channel::Sender<Result<Trailers, Error>>>,
+        trailer_receiver: async_channel::Receiver<Result<Trailers, Error>>,
     }
 }
 
 impl Body {
     /// Create an empty Body
     pub fn empty() -> Self {
-        let (sender, receiver) = piper::chan(1);
+        let (sender, receiver) = async_channel::bounded(1);
 
         Self {
             reader: Box::new(empty()),
@@ -42,7 +42,7 @@ impl Body {
         reader: impl AsyncBufRead + Unpin + Send + Sync + 'static,
         len: Option<usize>,
     ) -> Self {
-        let (sender, receiver) = piper::chan(1);
+        let (sender, receiver) = async_channel::bounded(1);
 
         Self {
             reader: Box::new(reader),
@@ -54,7 +54,7 @@ impl Body {
 
     /// Create a Body from bytes
     pub fn from_bytes(bytes: Vec<u8>) -> Self {
-        let (sender, receiver) = piper::chan(1);
+        let (sender, receiver) = async_channel::bounded(1);
 
         Self {
             length: Some(bytes.len()),
@@ -106,7 +106,7 @@ impl Body {
     /// Don't use this directly if you also want to read the body.
     /// In that case, prefer `into_{bytes, string}_with_trailer()
     pub async fn recv_trailers(&self) -> Option<Result<Trailers, Error>> {
-        self.trailer_receiver.recv().await
+        self.trailer_receiver.recv().await.ok()
     }
 
     pub(crate) fn set_inner(
@@ -121,7 +121,7 @@ impl Body {
 
 impl From<String> for Body {
     fn from(s: String) -> Self {
-        let (sender, receiver) = piper::chan(1);
+        let (sender, receiver) = async_channel::bounded(1);
 
         Self {
             length: Some(s.len()),
@@ -134,7 +134,7 @@ impl From<String> for Body {
 
 impl<'a> From<&'a str> for Body {
     fn from(s: &'a str) -> Self {
-        let (sender, receiver) = piper::chan(1);
+        let (sender, receiver) = async_channel::bounded(1);
 
         Self {
             length: Some(s.len()),

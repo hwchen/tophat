@@ -4,7 +4,7 @@
 //!
 //! Currently tophat can only receive, not send them.
 
-use piper::Sender;
+use async_channel::Sender;
 use http::HeaderMap;
 use std::ops::{Deref, DerefMut};
 
@@ -75,6 +75,7 @@ impl TrailersSender {
     ///
     /// The channel will be consumed after having sent trailers.
     pub(crate) async fn send(self, trailers: Result<Trailers, Error>) {
-        self.sender.send(trailers).await
+        // TODO should this return an error?
+        let _ = self.sender.send(trailers).await;
     }
 }
