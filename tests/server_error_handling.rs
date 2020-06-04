@@ -1,4 +1,4 @@
-mod test_client;
+mod mock;
 
 use tophat::{
     glitch, glitch_code,
@@ -9,7 +9,7 @@ use tophat::{
     },
 };
 
-use test_client::TestClient;
+use mock::Client;
 
 const RESP_400: &str = "HTTP/1.1 400 Bad Request\r\ncontent-length: 0\r\n\r\n";
 const RESP_500: &str = "HTTP/1.1 500 Internal Server Error\r\ncontent-length: 0\r\n\r\n";
@@ -19,7 +19,7 @@ const S_500: StatusCode = StatusCode::INTERNAL_SERVER_ERROR;
 #[test]
 fn test_request_manually_create_glitch() {
     smol::block_on(async {
-        let testclient = TestClient::new(
+        let testclient = Client::new(
             "GET /foo/bar HTTP/1.1\r\nHost: example.org\r\n\r\n",
             RESP_400,
         );
@@ -44,7 +44,7 @@ fn test_request_glitch_with_context() {
 
     // automatic
     smol::block_on(async {
-        let testclient = TestClient::new(
+        let testclient = Client::new(
             "GET /foo/bar HTTP/1.1\r\nHost: example.org\r\n\r\n",
             RESP_500,
         );
@@ -63,7 +63,7 @@ fn test_request_glitch_with_context() {
 
     // context no message
     smol::block_on(async {
-        let testclient = TestClient::new(
+        let testclient = Client::new(
             "GET /foo/bar HTTP/1.1\r\nHost: example.org\r\n\r\n",
             RESP_500,
         );
@@ -82,7 +82,7 @@ fn test_request_glitch_with_context() {
 
     // context
     smol::block_on(async {
-        let testclient = TestClient::new(
+        let testclient = Client::new(
             "GET /foo/bar HTTP/1.1\r\nHost: example.org\r\n\r\n",
             "HTTP/1.1 500 Internal Server Error\r\ncontent-length: 12\r\n\r\ncustom error",
         );
@@ -101,7 +101,7 @@ fn test_request_glitch_with_context() {
 
     // context on Option
     smol::block_on(async {
-        let testclient = TestClient::new(
+        let testclient = Client::new(
             "GET /foo/bar HTTP/1.1\r\nHost: example.org\r\n\r\n",
             "HTTP/1.1 400 Bad Request\r\ncontent-length: 12\r\n\r\ncustom error",
         );
@@ -121,7 +121,7 @@ fn test_request_glitch_with_context() {
 
     // manual
     smol::block_on(async {
-        let testclient = TestClient::new(
+        let testclient = Client::new(
             "GET /foo/bar HTTP/1.1\r\nHost: example.org\r\n\r\n",
             RESP_400,
         );
@@ -142,7 +142,7 @@ fn test_request_glitch_with_context() {
 #[test]
 fn test_request_glitch_macro() {
     smol::block_on(async {
-        let testclient = TestClient::new(
+        let testclient = Client::new(
             "GET /foo/bar HTTP/1.1\r\nHost: example.org\r\n\r\n",
             RESP_500,
         );
@@ -159,7 +159,7 @@ fn test_request_glitch_macro() {
         testclient.assert();
     });
     smol::block_on(async {
-        let testclient = TestClient::new(
+        let testclient = Client::new(
             "GET /foo/bar HTTP/1.1\r\nHost: example.org\r\n\r\n",
             RESP_400,
         );
@@ -178,7 +178,7 @@ fn test_request_glitch_macro() {
         testclient.assert();
     });
     smol::block_on(async {
-        let testclient = TestClient::new(
+        let testclient = Client::new(
             "GET /foo/bar HTTP/1.1\r\nHost: example.org\r\n\r\n",
             "HTTP/1.1 400 Bad Request\r\ncontent-length: 12\r\n\r\ncustom error",
         );
@@ -202,7 +202,7 @@ fn test_request_glitch_macro() {
 fn test_request_glitch_code_macro() {
     // this one can panic if code incorrect
     smol::block_on(async {
-        let testclient = TestClient::new(
+        let testclient = Client::new(
             "GET /foo/bar HTTP/1.1\r\nHost: example.org\r\n\r\n",
             "HTTP/1.1 400 Bad Request\r\ncontent-length: 12\r\n\r\ncustom error",
         );
@@ -227,7 +227,7 @@ fn test_request_glitch_code_macro() {
 fn test_request_glitch_code_macro_panic() {
     // this one can panic if code incorrect
     smol::block_on(async {
-        let testclient = TestClient::new(
+        let testclient = Client::new(
             "GET /foo/bar HTTP/1.1\r\nHost: example.org\r\n\r\n",
             RESP_400,
         );

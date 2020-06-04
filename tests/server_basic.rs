@@ -1,6 +1,5 @@
 mod chunked_text_big;
-mod test_client;
-use test_client::Cursor;
+mod mock;
 
 use http::{
     header::{self, HeaderName, HeaderValue},
@@ -9,7 +8,7 @@ use http::{
 };
 use tophat::{server::accept, Body};
 
-use test_client::TestClient;
+use mock::{Cursor, Client};
 
 const RESP_200: &str = "HTTP/1.1 200 OK\r\ncontent-length: 0\r\n\r\n";
 const RESP_400: &str = "HTTP/1.1 400 Bad Request\r\ncontent-length: 0\r\n\r\n";
@@ -17,7 +16,7 @@ const RESP_400: &str = "HTTP/1.1 400 Bad Request\r\ncontent-length: 0\r\n\r\n";
 #[test]
 fn test_request_empty_body() {
     smol::block_on(async {
-        let testclient = TestClient::new(
+        let testclient = Client::new(
             "GET /foo/bar HTTP/1.1\r\nHost: example.org\r\n\r\n",
             RESP_200,
         );
@@ -38,7 +37,7 @@ fn test_request_empty_body() {
 #[test]
 fn test_request_basic_with_body_and_query() {
     smol::block_on(async {
-        let testclient = TestClient::new(
+        let testclient = Client::new(
             "GET /foo/bar?one=two HTTP/1.1\r\nHost: example.org\r\nContent-Length: 6\r\n\r\ntophat",
             "HTTP/1.1 200 OK\r\ncontent-length: 12\r\n\r\nHello tophat",
         );
@@ -76,7 +75,7 @@ fn test_request_basic_with_body_and_query() {
 #[test]
 fn test_request_missing_method() {
     smol::block_on(async {
-        let testclient = TestClient::new(
+        let testclient = Client::new(
             "/foo/bar HTTP/1.1\r\nHost: example.org\r\nContent-Length: 0\r\n\r\n",
             RESP_400,
         );
@@ -94,7 +93,7 @@ fn test_request_missing_method() {
 #[test]
 fn test_request_missing_host() {
     smol::block_on(async {
-        let testclient = TestClient::new(
+        let testclient = Client::new(
             "GET /foo/bar HTTP/1.1\r\nContent-Length: 0\r\n\r\n",
             RESP_400,
         );
@@ -114,7 +113,7 @@ fn test_request_missing_host() {
 fn test_request_path() {
     smol::block_on(async {
         // good uri path
-        let testclient = TestClient::new(
+        let testclient = Client::new(
             "GET /foo/bar HTTP/1.1\r\nHost: example.org\r\nContent-Length: 0\r\n\r\n",
             RESP_200,
         );
@@ -130,7 +129,7 @@ fn test_request_path() {
         testclient.assert();
 
         // good absolute uri, ignores host
-        let testclient = TestClient::new(
+        let testclient = Client::new(
             "GET https://wunder.org/foo/bar HTTP/1.1\r\nHost: example.org\r\nContent-Length: 0\r\n\r\n",
             RESP_200,
         );
@@ -146,7 +145,7 @@ fn test_request_path() {
         testclient.assert();
 
         // bad uri path
-        let testclient = TestClient::new(
+        let testclient = Client::new(
             "GET foo/bar HTTP/1.1\r\nHost: example.org\r\nContent-Length: 0\r\n\r\n",
             RESP_400,
         );
@@ -165,7 +164,7 @@ fn test_request_path() {
 fn test_request_version() {
     // malformed version
     smol::block_on(async {
-        let testclient = TestClient::new(
+        let testclient = Client::new(
             "GET /foo/bar HTP/1.1\r\nHost: example.org\r\nContent-Length: 0\r\n\r\n",
             RESP_400,
         );
@@ -181,7 +180,7 @@ fn test_request_version() {
 
     // version 1.0 not supported
     smol::block_on(async {
-        let testclient = TestClient::new(
+        let testclient = Client::new(
             "GET /foo/bar HTTP/1.0\r\nHost: example.org\r\nContent-Length: 0\r\n\r\n",
             "HTTP/1.1 505 HTTP Version Not Supported\r\ncontent-length: 0\r\n\r\n",
         );
@@ -200,7 +199,7 @@ fn test_request_version() {
 #[test]
 fn test_transfer_encoding_unsupported() {
     smol::block_on(async {
-        let testclient = TestClient::new(
+        let testclient = Client::new(
             "GET /foo/bar HTTP/1.1\r\nHost: example.org\r\nContent-Length: 0\r\nTransfer-Encoding: gzip\r\n\r\n",
             "HTTP/1.1 501 Not Implemented\r\ncontent-length: 0\r\n\r\n",
         );
@@ -227,7 +226,7 @@ fn test_transfer_encoding_unsupported() {
 #[ignore] // temporary
 fn test_transfer_encoding_content_length() {
     smol::block_on(async {
-        let testclient = TestClient::new(
+        let testclient = Client::new(
             "GET /foo/bar HTTP/1.1\r\nHost: example.org\r\nContent-Length: 0\r\nTransfer-Encoding: chunked\r\n\r\n",
             RESP_400,
         );
@@ -249,7 +248,7 @@ fn test_dont_allow_user_set_body_type_header() {
     //
     // Just test the two conflicting cases
     smol::block_on(async {
-        let testclient = TestClient::new(
+        let testclient = Client::new(
             "GET /foo/bar HTTP/1.1\r\nHost: example.org\r\nContent-Length: 0\r\n\r\n",
             RESP_200,
         );
@@ -265,7 +264,7 @@ fn test_dont_allow_user_set_body_type_header() {
     });
 
     smol::block_on(async {
-        let testclient = TestClient::new(
+        let testclient = Client::new(
             "GET /foo/bar HTTP/1.1\r\nHost: example.org\r\nContent-Length: 0\r\n\r\n",
             "HTTP/1.1 200 OK\r\ntransfer-encoding: chunked\r\n\r\n0\r\n\r\n",
         );
@@ -287,7 +286,7 @@ fn test_response_date() {
     // make sure that date isn't doubled if it's also set in response
     // also make sure that the date header was passed through
     smol::block_on(async {
-        let testclient = TestClient::new(
+        let testclient = Client::new(
             "GET /foo/bar HTTP/1.1\r\nHost: example.org\r\nContent-Length: 0\r\nTransfer-Encoding: chunked\r\n\r\n",
             RESP_200,
         );
@@ -302,7 +301,7 @@ fn test_response_date() {
         .await
         .unwrap();
 
-        // One Date header should be stripped out by TestClient
+        // One Date header should be stripped out by Client
         testclient.assert_with_resp_date("Wed, 21 Oct 2015 07:28:00 GMT");
     });
 }
@@ -310,7 +309,7 @@ fn test_response_date() {
 #[test]
 fn test_set_content_type_mime() {
     smol::block_on(async {
-        let testclient = TestClient::new(
+        let testclient = Client::new(
             "GET /foo/bar HTTP/1.1\r\nHost: example.org\r\nContent-Length: 0\r\n\r\n",
             "HTTP/1.1 200 OK\r\ncontent-length: 0\r\ncontent-type: text/plain\r\n\r\n",
         );
@@ -322,7 +321,7 @@ fn test_set_content_type_mime() {
         .await
         .unwrap();
 
-        // One Date header should be stripped out by TestClient
+        // One Date header should be stripped out by Client
         testclient.assert();
     });
 }
@@ -330,7 +329,7 @@ fn test_set_content_type_mime() {
 #[test]
 fn test_decode_transfer_encoding_chunked() {
     smol::block_on(async {
-        let testclient = TestClient::new(
+        let testclient = Client::new(
             "GET /foo/bar HTTP/1.1\r\nHost: example.org\r\nTransfer-Encoding: chunked\r\n\r\n\
                 7\r\n\
                 Mozilla\r\n\
@@ -370,7 +369,7 @@ fn test_decode_transfer_encoding_chunked() {
 
     // no trailer
     smol::block_on(async {
-        let testclient = TestClient::new(
+        let testclient = Client::new(
             "GET /foo/bar HTTP/1.1\r\nHost: example.org\r\nTransfer-Encoding: chunked\r\n\r\n\
                 7\r\n\
                 Mozilla\r\n\
@@ -407,7 +406,7 @@ fn test_encode_transfer_encoding_chunked() {
     smol::block_on(async {
         // 13 is D in hexadecimal.
         // Need two writes because there's a chunk and then there's the end.
-        let testclient = TestClient::new_with_writes(
+        let testclient = Client::new_with_writes(
             "GET /foo/bar HTTP/1.1\r\nHost: example.org\r\nContent-Length: 0\r\n\r\n",
             "HTTP/1.1 200 OK\r\ntransfer-encoding: chunked\r\n\r\nD\r\nHello tophat!\r\n0\r\n\r\n",
             2,
@@ -432,7 +431,7 @@ fn test_encode_transfer_encoding_chunked_big() {
     smol::block_on(async {
         // 13 is D in hexadecimal.
         // Need two writes because there's a chunk and then there's the end.
-        let testclient = TestClient::new_with_writes(
+        let testclient = Client::new_with_writes(
             "GET /foo/bar HTTP/1.1\r\nHost: example.org\r\nContent-Length: 0\r\n\r\n",
             chunked_text_big::RESPONSE,
             1,

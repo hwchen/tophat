@@ -1,6 +1,7 @@
 #![allow(dead_code)] // because of testing with and without anyhow errors
 
-//! TestClient for testing server
+//! Test Client for testing server
+//! Test Server for testing client
 
 use futures_io::{AsyncBufRead, AsyncRead, AsyncWrite};
 use std::io;
@@ -9,7 +10,7 @@ use std::sync::{Arc, Mutex};
 use std::task::{Context, Poll};
 
 #[derive(Clone)]
-pub struct TestClient {
+pub struct Client {
     // bool is true if read/written, fallse if not yet read/written
     // TODO make rdr and wtr structs so this is easier to understand.
     read_buf: Arc<Mutex<(Vec<u8>, bool)>>,
@@ -19,7 +20,7 @@ pub struct TestClient {
     num_writes: usize,
 }
 
-impl TestClient {
+impl Client {
     pub fn new(req: &str, expected_resp: &str) -> Self {
         Self {
             read_buf: Arc::new(Mutex::new((req.to_owned().into_bytes(), false))),
@@ -61,7 +62,7 @@ impl TestClient {
     }
 }
 
-impl AsyncRead for TestClient {
+impl AsyncRead for Client {
     fn poll_read(
         self: Pin<&mut Self>,
         _cx: &mut Context,
@@ -78,7 +79,7 @@ impl AsyncRead for TestClient {
     }
 }
 
-impl AsyncWrite for TestClient {
+impl AsyncWrite for Client {
     fn poll_write(self: Pin<&mut Self>, _cx: &mut Context, buf: &[u8]) -> Poll<io::Result<usize>> {
         let mut wtr = self.write_buf.lock().unwrap();
         if wtr.1 < self.num_writes {
