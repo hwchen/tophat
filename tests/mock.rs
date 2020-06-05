@@ -100,6 +100,100 @@ impl AsyncWrite for Client {
     }
 }
 
+// TODO refactor to combine mock client and server?
+// TODO should reading or writing be read or write many times?
+#[derive(Clone)]
+pub struct Server {
+    // bool is true if read/written, fallse if not yet read/written
+    // TODO make rdr and wtr structs so this is easier to understand.
+    read_buf: Arc<Mutex<(Vec<u8>, bool)>>,
+    write_buf: Arc<Mutex<(Vec<u8>, usize)>>,
+    expected: Vec<u8>,
+    // sometimes writer needs to write more than once, like for chunks
+    num_writes: usize,
+}
+
+impl Server {
+    pub fn new(expected_req: &str, resp: &str) -> Self {
+        Self {
+            read_buf: Arc::new(Mutex::new((resp.to_owned().into_bytes(), false))),
+            write_buf: Arc::new(Mutex::new((Vec::new(), 0))),
+            expected: expected_req.to_owned().into_bytes(),
+            num_writes: 1,
+        }
+    }
+
+    pub fn new_with_writes(expected_req: &str, resp: &str, writes: usize) -> Self {
+        Self {
+            read_buf: Arc::new(Mutex::new((resp.to_owned().into_bytes(), false))),
+            write_buf: Arc::new(Mutex::new((Vec::new(), 0))),
+            expected: expected_req.to_owned().into_bytes(),
+            num_writes: writes,
+        }
+    }
+
+    pub fn assert(self) {
+        let write_buf = self.write_buf.lock().unwrap();
+        let req = remove_date(&write_buf.0);
+        assert_eq!(
+            String::from_utf8(req).unwrap(),
+            String::from_utf8(self.expected).unwrap()
+        );
+    }
+
+    pub fn assert_with_resp_date(self, date: &str) {
+        let write_buf = self.write_buf.lock().unwrap();
+
+        let req_with_date = String::from_utf8(write_buf.0.clone()).unwrap();
+        req_with_date.find(date).unwrap();
+
+        let req = remove_date(&write_buf.0);
+        assert_eq!(
+            String::from_utf8(req).unwrap(),
+            String::from_utf8(self.expected).unwrap()
+        );
+    }
+}
+
+impl AsyncRead for Server {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        _cx: &mut Context,
+        buf: &mut [u8],
+    ) -> Poll<io::Result<usize>> {
+        let mut rdr = self.read_buf.lock().unwrap();
+        if !rdr.1 {
+            println!("hit mock server read, sending: {}", String::from_utf8(rdr.0.clone()).unwrap());
+            rdr.1 = true;
+            io::Read::read(&mut io::Cursor::new(&*rdr.0), buf).unwrap();
+            Poll::Ready(Ok(rdr.0.len()))
+        } else {
+            Poll::Ready(Ok(0))
+        }
+    }
+}
+
+impl AsyncWrite for Server {
+    fn poll_write(self: Pin<&mut Self>, _cx: &mut Context, buf: &[u8]) -> Poll<io::Result<usize>> {
+        let mut wtr = self.write_buf.lock().unwrap();
+        if wtr.1 < self.num_writes {
+            wtr.1 += 1;
+            wtr.0.extend_from_slice(buf);
+            Poll::Ready(Ok(wtr.0.len()))
+        } else {
+            Poll::Ready(Ok(0))
+        }
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, _cx: &mut Context) -> Poll<io::Result<()>> {
+        Poll::Ready(Ok(())) // placeholder, shouldn't hit?
+    }
+
+    fn poll_close(self: Pin<&mut Self>, _cx: &mut Context) -> Poll<io::Result<()>> {
+        Poll::Ready(Ok(())) // placeholder, shouldn't hit?
+    }
+}
+
 // just strip date from response
 fn remove_date(b: &[u8]) -> Vec<u8> {
     // just change to str and back is easier for now

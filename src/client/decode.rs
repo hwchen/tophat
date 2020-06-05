@@ -36,8 +36,8 @@ where
             .await
             .map_err(error::decode_err)?;
         // No more bytes are yielded from the stream.
-        if !(bytes_read != 0) {
-            error::decode("Empty response".to_owned());
+        if bytes_read == 0 {
+            return Err(error::decode("Empty response".to_owned()));
         }
 
         // Prevent CWE-400 DDOS with large HTTP Headers.
