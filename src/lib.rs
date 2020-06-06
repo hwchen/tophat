@@ -24,6 +24,5 @@ mod util;
 pub use http;
 
 pub use body::Body;
-pub use server::error::ServerError;
 pub use request::Request;
 pub use response::Response;
