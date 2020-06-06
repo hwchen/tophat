@@ -8,7 +8,7 @@ use async_channel::Sender;
 use http::HeaderMap;
 use std::ops::{Deref, DerefMut};
 
-use crate::Error;
+use crate::body::error::BodyError;
 
 /// A collection of trailing HTTP headers.
 #[derive(Debug)]
@@ -61,20 +61,20 @@ impl DerefMut for Trailers {
 /// `Trailers` should be created.
 #[derive(Debug)]
 pub struct TrailersSender {
-    sender: Sender<Result<Trailers, Error>>,
+    sender: Sender<Result<Trailers, BodyError>>,
 }
 
 impl TrailersSender {
     /// Create a new instance of `TrailersSender`.
     #[doc(hidden)]
-    pub(crate) fn new(sender: Sender<Result<Trailers, Error>>) -> Self {
+    pub(crate) fn new(sender: Sender<Result<Trailers, BodyError>>) -> Self {
         Self { sender }
     }
 
     /// Send a `Trailer`.
     ///
     /// The channel will be consumed after having sent trailers.
-    pub(crate) async fn send(self, trailers: Result<Trailers, Error>) {
+    pub(crate) async fn send(self, trailers: Result<Trailers, BodyError>) {
         // TODO should this return an error?
         let _ = self.sender.send(trailers).await;
     }
