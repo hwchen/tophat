@@ -7,10 +7,7 @@ use std::fmt;
 
 /// Public Errors (does not include internal fails)
 #[derive(Debug)]
-pub enum Error {
-    /// Error when converting from a type to Body
-    BodyConversion(std::io::Error),
-
+pub enum ServerError {
     /// Error because tophat does not support the transfer encoding.
     ConnectionClosedUnsupportedTransferEncoding,
 
@@ -18,22 +15,20 @@ pub enum Error {
     ConnectionLost(std::io::Error),
 }
 
-impl std::error::Error for Error {
+impl std::error::Error for ServerError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        use Error::*;
+        use ServerError::*;
         match self {
-            BodyConversion(err) => Some(err),
             ConnectionClosedUnsupportedTransferEncoding => None,
             ConnectionLost(err) => Some(err),
         }
     }
 }
 
-impl fmt::Display for Error {
+impl fmt::Display for ServerError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        use Error::*;
+        use ServerError::*;
         match self {
-            BodyConversion(err) => write!(f, "Error converting body: {}", err),
             ConnectionClosedUnsupportedTransferEncoding => {
                 write!(f, "Connection closed: Unsupported Transfer Encoding")
             }

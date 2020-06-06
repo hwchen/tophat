@@ -12,10 +12,10 @@ use std::fmt;
 
 use crate::body::Body;
 use crate::chunked::ChunkedDecoder;
-use crate::error::Error;
 use crate::Request;
 
 use super::response_writer::InnerResponse;
+use super::error::ServerError;
 
 const LF: u8 = b'\n';
 
@@ -215,7 +215,7 @@ pub(crate) fn fail_to_response_and_log(fail: &DecodeFail) -> Option<InnerRespons
     }
 }
 
-pub(crate) fn fail_to_crate_err(fail: DecodeFail) -> Option<Error> {
+pub(crate) fn fail_to_crate_err(fail: DecodeFail) -> Option<ServerError> {
     use log::*;
     use DecodeFail::*;
 
@@ -224,7 +224,7 @@ pub(crate) fn fail_to_crate_err(fail: DecodeFail) -> Option<Error> {
 
     match fail {
         //ConnectionLost(err) => Some(Error::ConnectionLost(err)),
-        HttpUnsupportedTransferEncoding => Some(Error::ConnectionClosedUnsupportedTransferEncoding),
+        HttpUnsupportedTransferEncoding => Some(ServerError::ConnectionClosedUnsupportedTransferEncoding),
         _ => None,
     }
 }

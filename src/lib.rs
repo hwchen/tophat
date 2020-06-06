@@ -13,7 +13,6 @@
 mod body;
 mod chunked;
 pub mod client;
-mod error;
 mod request;
 mod response;
 pub mod server;
@@ -25,6 +24,6 @@ mod util;
 pub use http;
 
 pub use body::Body;
-pub use error::Error;
+pub use server::error::ServerError;
 pub use request::Request;
 pub use response::Response;

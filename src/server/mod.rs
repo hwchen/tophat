@@ -12,19 +12,20 @@ pub mod identity;
 mod response_writer;
 #[cfg(feature = "router")]
 pub mod router;
+pub mod error;
 
 use futures_core::Future;
 use futures_io::{AsyncRead, AsyncWrite};
 use std::time::Duration;
 
 use crate::body::Body;
-use crate::error::Error;
 use crate::request::Request;
 use crate::response::Response;
 use crate::server::decode::DecodeFail;
 use crate::timeout::{timeout, TimeoutError};
 
 use self::decode::decode;
+pub use self::error::ServerError;
 pub use self::glitch::{Glitch, Result};
 use self::response_writer::InnerResponse;
 pub use self::response_writer::{ResponseWriter, ResponseWritten};
@@ -32,7 +33,7 @@ pub use self::response_writer::{ResponseWriter, ResponseWritten};
 /// Accept a new incoming Http/1.1 connection
 ///
 /// Automatically supports KeepAlive
-pub async fn accept<RW, F, Fut>(io: RW, endpoint: F) -> std::result::Result<(), Error>
+pub async fn accept<RW, F, Fut>(io: RW, endpoint: F) -> std::result::Result<(), ServerError>
 where
     RW: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
     F: Fn(Request, ResponseWriter<RW>) -> Fut,
@@ -48,7 +49,7 @@ pub async fn accept_with_opts<RW, F, Fut>(
     io: RW,
     opts: ServerOpts,
     endpoint: F,
-) -> std::result::Result<(), Error>
+) -> std::result::Result<(), ServerError>
 where
     RW: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
     F: Fn(Request, ResponseWriter<RW>) -> Fut,
@@ -123,7 +124,7 @@ impl Default for ServerOpts {
 }
 
 // handles both writing error response and bubbling up major system errors as necessary.
-async fn handle_decode_fail<RW>(fail: DecodeFail, io: RW) -> std::result::Result<(), Error>
+async fn handle_decode_fail<RW>(fail: DecodeFail, io: RW) -> std::result::Result<(), ServerError>
 where
     RW: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
 {

@@ -212,7 +212,7 @@ fn test_transfer_encoding_unsupported() {
         match res {
             Ok(_) => panic!(),
             Err(err) => match err {
-                tophat::Error::ConnectionClosedUnsupportedTransferEncoding => (),
+                tophat::server::ServerError::ConnectionClosedUnsupportedTransferEncoding => (),
                 _ => panic!(),
             },
         }
