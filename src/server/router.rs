@@ -160,11 +160,11 @@ where
     W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
 {
     /// Invoke the endpoint within the given context
-    fn call<'a>(
-        &'a self,
+    fn call(
+        &self,
         req: Request,
         resp_wtr: ResponseWriter<W>,
-    ) -> BoxFuture<'a, Result<ResponseWritten>>;
+    ) -> BoxFuture<Result<ResponseWritten>>;
 }
 
 impl<F: Send + Sync + 'static, Fut, Res, W> Endpoint<W> for F
@@ -174,11 +174,11 @@ where
     Res: Into<ResponseWritten>,
     W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
 {
-    fn call<'a>(
-        &'a self,
+    fn call(
+        &self,
         req: Request,
         resp: ResponseWriter<W>,
-    ) -> BoxFuture<'a, Result<ResponseWritten>> {
+    ) -> BoxFuture<Result<ResponseWritten>> {
         let fut = (self)(req, resp);
         Box::pin(async move {
             let res = fut.await?;

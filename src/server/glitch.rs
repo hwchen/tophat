@@ -131,6 +131,7 @@ impl Glitch {
         if verbose {
             // must be a less awkward way to do this.
             if let Some(trace) = self.trace {
+                #[allow(clippy::comparison_to_empty)]
                 if msg != "" {
                     msg = msg + "\n" + &trace;
                 } else {

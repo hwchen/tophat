@@ -216,6 +216,7 @@ impl<R: AsyncRead + Unpin> AsyncRead for ChunkedDecoder<R> {
 
         let mut n = std::mem::replace(&mut this.current, 0..0);
         let buffer = std::mem::replace(&mut this.buffer, POOL.alloc(INITIAL_CAPACITY));
+        #[allow(clippy::match_like_matches_macro)]
         let mut needs_read = if let State::Chunk(_, _) = this.state {
             false // Do not attempt to fill the buffer when we are reading a chunk
         } else {
