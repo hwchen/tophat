@@ -159,6 +159,10 @@ where
 const EXPECT_HEADER_VALUE: &[u8] = b"100-continue";
 const EXPECT_RESPONSE: &[u8] = b"HTTP/1.1 100 Continue\r\n\r\n";
 
+// This implementation s from async-h1, and should be spec-compliant, but async-h1 moved
+// to another way (that may/may not be better?) that requires use of `spawn`. See
+// https://tools.ietf.org/html/rfc7231#section-6.2.1 and
+// https://github.com/http-rs/async-h1/issues/135
 async fn handle_100_continue<W>(req: &Builder, wtr: &mut W) -> Result<(), DecodeFail>
     where
     W: AsyncWrite + Unpin
