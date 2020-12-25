@@ -157,7 +157,7 @@ where
 }
 
 const EXPECT_HEADER_VALUE: &[u8] = b"100-continue";
-const EXPECT_RESPONSE: &[u8] = b"HTTP/1.1 100 Continue\r\n";
+const EXPECT_RESPONSE: &[u8] = b"HTTP/1.1 100 Continue\r\n\r\n";
 
 async fn handle_100_continue<W>(req: &Builder, wtr: &mut W) -> Result<(), DecodeFail>
     where
@@ -251,5 +251,65 @@ pub(crate) fn fail_to_crate_err(fail: DecodeFail) -> Option<ServerError> {
         //ConnectionLost(err) => Some(Error::ConnectionLost(err)),
         HttpUnsupportedTransferEncoding => Some(ServerError::ConnectionClosedUnsupportedTransferEncoding),
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::util::Cursor;
+    use smol;
+
+    #[test]
+    fn test_handle_100_continue_does_nothing_with_no_header() {
+        let req = http::request::Builder::new();
+        let mut io = Cursor::new(Vec::new());
+        smol::block_on(async {
+            let result = handle_100_continue(&req, &mut io).await;
+            assert_eq!(
+                std::str::from_utf8(&io.into_inner()).unwrap(),
+                "",
+            );
+
+            assert!(result.is_ok())
+        });
+    }
+
+    #[test]
+    fn test_handle_100_continue_sends_header_if_expects_is_right() {
+        let mut req = http::request::Builder::new();
+        req.headers_mut().expect("Request builder error").append(
+            HeaderName::from_bytes(b"expect").unwrap(),
+            HeaderValue::from_bytes(b"100-continue").unwrap(),
+        );
+        let mut io = Cursor::new(Vec::new());
+        smol::block_on(async {
+            let result = handle_100_continue(&req, &mut io).await;
+            assert_eq!(
+                std::str::from_utf8(&io.into_inner()).unwrap(),
+                "HTTP/1.1 100 Continue\r\n\r\n",
+            );
+
+            assert!(result.is_ok())
+        });
+    }
+
+    #[test]
+    fn test_handle_100_continue_sends_header_if_expects_is_wrong() {
+        let mut req = http::request::Builder::new();
+        req.headers_mut().expect("Request builder error").append(
+            HeaderName::from_bytes(b"expect").unwrap(),
+            HeaderValue::from_bytes(b"111-wrong").unwrap(),
+        );
+        let mut io = Cursor::new(Vec::new());
+        smol::block_on(async {
+            let result = handle_100_continue(&req, &mut io).await;
+            assert_eq!(
+                std::str::from_utf8(&io.into_inner()).unwrap(),
+                "",
+            );
+
+            assert!(result.is_ok())
+        });
     }
 }

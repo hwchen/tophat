@@ -1,4 +1,4 @@
-use futures_io::{AsyncBufRead, AsyncRead};
+use futures_io::{AsyncBufRead, AsyncRead, AsyncWrite};
 use std::io;
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -12,6 +12,11 @@ impl<T> Cursor<T> {
         Self {
             inner: std::io::Cursor::new(t),
         }
+    }
+
+    #[allow(dead_code)] // used for testing
+    pub(crate) fn into_inner(self) -> T {
+        self.inner.into_inner()
     }
 }
 
@@ -79,4 +84,22 @@ impl AsyncBufRead for Empty {
     }
 
     fn consume(self: Pin<&mut Self>, _amt: usize) {}
+}
+
+impl AsyncWrite for Cursor<Vec<u8>> {
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        _: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<io::Result<usize>> {
+        Poll::Ready(std::io::Write::write(&mut self.inner, buf))
+    }
+
+    fn poll_close(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        self.poll_flush(cx)
+    }
+
+    fn poll_flush(mut self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<io::Result<()>> {
+        Poll::Ready(std::io::Write::flush(&mut self.inner))
+    }
 }

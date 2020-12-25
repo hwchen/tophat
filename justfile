@@ -1,8 +1,8 @@
 watch:
     cargo watch -x 'check --all-features --examples --tests'
 
-test:
-    cargo watch -x 'test -- --nocapture'
+test filter='':
+    cargo watch -x 'test {{filter}}'
 
 test-anyhow:
     cargo watch -x 'test --features=anyhow -- --nocapture'
