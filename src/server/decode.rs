@@ -5,9 +5,12 @@
 // - upgrade
 // etc.
 
-use futures_io::AsyncRead;
-use futures_util::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
-use http::header::{self, HeaderName, HeaderValue};
+use futures_io::{AsyncRead, AsyncWrite};
+use futures_util::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
+use http::{
+    request::Builder,
+    header::{self, HeaderName, HeaderValue},
+};
 use std::fmt;
 
 use crate::body::Body;
@@ -27,13 +30,13 @@ const SUPPORTED_TRANSFER_ENCODING: [&[u8]; 2] = [b"chunked", b"identity"];
 /// are defined in this module.
 ///
 /// `None` means that no request was read.
-pub(crate) async fn decode<R>(reader: R) -> Result<Option<Request>, DecodeFail>
+pub(crate) async fn decode<IO>(mut io: IO) -> Result<Option<Request>, DecodeFail>
 where
-    R: AsyncRead + Unpin + Send + Sync + 'static,
+    IO: AsyncRead + AsyncWrite + Clone + Unpin + Send + Sync + 'static,
 {
     use DecodeFail::*;
 
-    let mut reader = BufReader::new(reader);
+    let mut reader = BufReader::new(io.clone());
     let mut buf = Vec::new();
     let mut headers = [httparse::EMPTY_HEADER; 16];
     let mut httparse_req = httparse::Request::new(&mut headers);
@@ -115,6 +118,8 @@ where
         );
     }
 
+    handle_100_continue(&req, &mut io).await?;
+
     // Now handle more complex parts of HTTP protocol
 
     // Handle path according to https://tools.ietf.org/html/rfc2616#section-5.2
@@ -149,6 +154,26 @@ where
         .map_err(|_| HttpRequestBuild)?;
 
     Ok(Some(req))
+}
+
+const EXPECT_HEADER_VALUE: &[u8] = b"100-continue";
+const EXPECT_RESPONSE: &[u8] = b"HTTP/1.1 100 Continue\r\n";
+
+async fn handle_100_continue<W>(req: &Builder, wtr: &mut W) -> Result<(), DecodeFail>
+    where
+    W: AsyncWrite + Unpin
+{
+    let expect_header = req.headers_ref()
+        .and_then(|hs| hs.get(header::EXPECT))
+        .map(|h| h.as_bytes());
+
+    if let Some(EXPECT_HEADER_VALUE) = expect_header {
+        wtr.write_all(EXPECT_RESPONSE)
+            .await
+            .map_err(DecodeFail::ConnectionLost)?;
+    }
+
+    Ok(())
 }
 
 // Internal failures. If one leads to an external error to bubble up, convert to a public error in
