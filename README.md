@@ -45,15 +45,10 @@ Don't be scared away by the generics and trait bounds! They won't bite! (probabl
 - Identity `features = ["identity"]`.
 - "Middleware" capabilities by using functions in front of router.
 - Convenient error/response handling using `Glitch` and `GlitchExt`, to conveniently chain onto both `Result` and `Option`.
+- Extensive examples.
+- A minimal client (not under active development)
 
 Correct handling of the HTTP protocol is a priority.
-
-Upcoming features:
-- Examples, with integrations.
-- Client?
-
-Long term:
-- HTTP/2
 
 # Example
 Using [`smol`](https://github.com/stjepang/smol) as the async runtime. Example is single-threaded, see `smol` docs for how to make a multi-threaded executor.
