@@ -219,7 +219,7 @@ where
 
     /// Set response to:
     /// - 200 OK
-    /// - Content-type
+    /// - Content-type text/plain
     /// - Body from String
     ///
     pub fn set_text(&mut self, text: String) -> &mut Self {
@@ -242,7 +242,7 @@ where
         let stream = stream.into_async_read();
 
         self.set_body(Body::from_reader(stream, None));
-        self.insert_header("content-type", "text/event-stream".parse().unwrap());
+        self.insert_header(http::header::CONTENT_TYPE, "text/event-stream".parse().unwrap());
     }
 }
 

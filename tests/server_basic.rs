@@ -426,15 +426,13 @@ fn test_encode_transfer_encoding_chunked() {
 }
 
 #[test]
-#[ignore] // TODO figure out how to line up chunks
+#[ignore]
 fn test_encode_transfer_encoding_chunked_big() {
     smol::block_on(async {
-        // 13 is D in hexadecimal.
-        // Need two writes because there's a chunk and then there's the end.
         let testclient = Client::new_with_writes(
             "GET /foo/bar HTTP/1.1\r\nHost: example.org\r\nContent-Length: 0\r\n\r\n",
             chunked_text_big::RESPONSE,
-            1,
+            3,
         );
 
         accept(testclient.clone(), |_req, mut resp_wtr| async move {
