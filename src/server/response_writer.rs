@@ -55,22 +55,23 @@ impl InnerResponse {
         }
     }
 
-    pub(crate) async fn send<W>(self, writer: W) -> Result<ResponseWritten, Glitch>
+    pub(crate) async fn send<W>(self, writer: W) -> Result<ResponseWritten, futures_io::Error>
     where
         W: AsyncWrite + Clone + Send + Sync + Unpin + 'static,
     {
         let mut encoder = Encoder::encode(self);
         let mut writer = writer;
-        match futures_util::io::copy(&mut encoder, &mut writer).await {
-            Ok(_) => (),
+        let bytes_written = match futures_util::io::copy(&mut encoder, &mut writer).await {
+            Ok(b) => b,
             Err(err) => {
                 // only log, don't break connection here. If connection is really closed, then the
                 // next decode will break the loop receiving requests
                 log::error!("Error sending response: {}", err);
+                return Err(err);
             }
-        }
+        };
 
-        Ok(ResponseWritten {})
+        Ok(ResponseWritten { bytes_written })
     }
 }
 
@@ -250,4 +251,13 @@ where
 // Currently an empty struct, not a unit struct, to make it impossible for user to create
 // themselves.
 /// A marker to ensure that a response is written inside a request handler.
-pub struct ResponseWritten {}
+pub struct ResponseWritten {
+    bytes_written: u64,
+}
+
+impl ResponseWritten {
+    /// Bytes written by `ResponseWriter`
+    pub fn bytes_written(&self) -> u64 {
+        self.bytes_written
+    }
+}
