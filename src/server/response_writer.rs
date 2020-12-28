@@ -82,7 +82,8 @@ impl InnerResponse {
 ///
 /// A `ResponseWriter` is initialized with a `Response` that contains:
 /// - An empty body
-/// - No headers
+/// - No headers (except that content-type defaults to `application/octet-stream` if not specified
+/// and there's a body)`
 /// - A 200 OK status
 ///
 /// You can modify the `Response` as they see fit. Note, however, that a `Body` is not
@@ -94,7 +95,7 @@ impl InnerResponse {
 /// - `set_text`, because there's no guess as to content-type, and
 /// - `set_sse`, because the content-type `text/event-stream` is required.
 ///
-/// If you wish to create a `Respons` separately and then apply it to the `ResponseWriter`, you can
+/// If you wish to create a `Response` separately and then apply it to the `ResponseWriter`, you can
 /// use `tophat::http::Response` and `tophat::Body`, and then `ReponseWriter::response_mut`.
 ///
 /// All methods on `ResponseWriter` should list what headers they modify in the document string, and
@@ -246,11 +247,6 @@ where
     }
 }
 
-// TODO have a ReponseResult, which may contain bytes read etc. And then have it transform into
-// ResponseWritten, to minimize boilerplate
-//
-// Currently an empty struct, not a unit struct, to make it impossible for user to create
-// themselves.
 /// A marker to ensure that a response is written inside a request handler.
 pub struct ResponseWritten {
     bytes_written: u64,

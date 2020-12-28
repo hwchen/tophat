@@ -58,6 +58,13 @@ impl Encoder {
         } else {
             None
         };
+        // if there's a body, and if no content-type header, set as application/octet-stream as default
+        #[allow(clippy::collapsible_if)]
+        if self.content_length.is_none() || matches!(self.content_length, Some(x) if x > 0) {
+            if !self.resp.headers.contains_key(header::CONTENT_TYPE) {
+                self.resp.headers.insert(header::CONTENT_TYPE, "application/octet-stream".parse().unwrap());
+            }
+        }
         let headers = self
             .resp
             .headers

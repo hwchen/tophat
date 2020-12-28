@@ -60,6 +60,7 @@ pub const TEXT: &str = concat![
 pub const RESPONSE: &'static str = concat![
     "HTTP/1.1 200 OK\r\n",
     "transfer-encoding: chunked\r\n",
+    "content-type: application/octet-stream\r\n",
     "\r\n",
     "1F7C\r\n",
     "Et provident reprehenderit accusamus dolores et voluptates sed quia. Repellendus odit porro ut et hic molestiae. Sit autem reiciendis animi fugiat deleniti vel iste. Laborum id odio ullam ut impedit dolores. Vel aperiam dolorem voluptatibus dignissimos maxime.",

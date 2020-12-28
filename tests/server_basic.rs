@@ -39,7 +39,7 @@ fn test_request_basic_with_body_and_query() {
     smol::block_on(async {
         let testclient = Client::new(
             "GET /foo/bar?one=two HTTP/1.1\r\nHost: example.org\r\nContent-Length: 6\r\n\r\ntophat",
-            "HTTP/1.1 200 OK\r\ncontent-length: 12\r\n\r\nHello tophat",
+            "HTTP/1.1 200 OK\r\ncontent-length: 12\r\ncontent-type: text/plain\r\n\r\nHello tophat",
         );
 
         accept(testclient.clone(), |req, mut resp_wtr| async move {
@@ -58,10 +58,11 @@ fn test_request_basic_with_body_and_query() {
             );
 
             let body = req.into_body().into_string().await.unwrap();
-
             let res_body = format!("Hello {}", body);
 
             resp_wtr.set_body(res_body.into());
+            resp_wtr.insert_header("content-type", "text/plain".parse().unwrap());
+
             let done = resp_wtr.send().await.unwrap();
 
             Ok(done)
@@ -266,7 +267,7 @@ fn test_dont_allow_user_set_body_type_header() {
     smol::block_on(async {
         let testclient = Client::new(
             "GET /foo/bar HTTP/1.1\r\nHost: example.org\r\nContent-Length: 0\r\n\r\n",
-            "HTTP/1.1 200 OK\r\ntransfer-encoding: chunked\r\n\r\n0\r\n\r\n",
+            "HTTP/1.1 200 OK\r\ntransfer-encoding: chunked\r\ncontent-type: application/octet-stream\r\n\r\n0\r\n\r\n",
         );
 
         accept(testclient.clone(), |_req, mut resp_wtr| async move {
@@ -408,7 +409,7 @@ fn test_encode_transfer_encoding_chunked() {
         // Need two writes because there's a chunk and then there's the end.
         let testclient = Client::new_with_writes(
             "GET /foo/bar HTTP/1.1\r\nHost: example.org\r\nContent-Length: 0\r\n\r\n",
-            "HTTP/1.1 200 OK\r\ntransfer-encoding: chunked\r\n\r\nD\r\nHello tophat!\r\n0\r\n\r\n",
+            "HTTP/1.1 200 OK\r\ntransfer-encoding: chunked\r\ncontent-type: application/octet-stream\r\n\r\nD\r\nHello tophat!\r\n0\r\n\r\n",
             2,
         );
 
@@ -426,7 +427,6 @@ fn test_encode_transfer_encoding_chunked() {
 }
 
 #[test]
-#[ignore]
 fn test_encode_transfer_encoding_chunked_big() {
     smol::block_on(async {
         let testclient = Client::new_with_writes(

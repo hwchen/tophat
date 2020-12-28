@@ -84,7 +84,7 @@ fn test_request_glitch_with_context() {
     smol::block_on(async {
         let testclient = Client::new(
             "GET /foo/bar HTTP/1.1\r\nHost: example.org\r\n\r\n",
-            "HTTP/1.1 500 Internal Server Error\r\ncontent-length: 12\r\n\r\ncustom error",
+            "HTTP/1.1 500 Internal Server Error\r\ncontent-length: 12\r\ncontent-type: text/plain\r\n\r\ncustom error",
         );
 
         accept(testclient.clone(), |_req, resp_wtr| async move {
@@ -103,7 +103,7 @@ fn test_request_glitch_with_context() {
     smol::block_on(async {
         let testclient = Client::new(
             "GET /foo/bar HTTP/1.1\r\nHost: example.org\r\n\r\n",
-            "HTTP/1.1 400 Bad Request\r\ncontent-length: 12\r\n\r\ncustom error",
+            "HTTP/1.1 400 Bad Request\r\ncontent-length: 12\r\ncontent-type: text/plain\r\n\r\ncustom error",
         );
 
         accept(testclient.clone(), |_req, resp_wtr| async move {
@@ -180,7 +180,7 @@ fn test_request_glitch_macro() {
     smol::block_on(async {
         let testclient = Client::new(
             "GET /foo/bar HTTP/1.1\r\nHost: example.org\r\n\r\n",
-            "HTTP/1.1 400 Bad Request\r\ncontent-length: 12\r\n\r\ncustom error",
+            "HTTP/1.1 400 Bad Request\r\ncontent-length: 12\r\ncontent-type: text/plain\r\n\r\ncustom error",
         );
 
         accept(testclient.clone(), |_req, resp_wtr| async move {
@@ -204,7 +204,7 @@ fn test_request_glitch_code_macro() {
     smol::block_on(async {
         let testclient = Client::new(
             "GET /foo/bar HTTP/1.1\r\nHost: example.org\r\n\r\n",
-            "HTTP/1.1 400 Bad Request\r\ncontent-length: 12\r\n\r\ncustom error",
+            "HTTP/1.1 400 Bad Request\r\ncontent-length: 12\r\ncontent-type: text/plain\r\n\r\ncustom error",
         );
 
         accept(testclient.clone(), |_req, resp_wtr| async move {

@@ -5,11 +5,16 @@
 //! server to handle; instead, they should be caught immediately after the endpoint, where they are
 //! transformed into a Response.
 //!
-//! This means that a Glitch is not an Error in the traditional Rust sense, it's very
+//! This means that a Glitch is not an Error in the general Rust sense, it's very
 //! Response-specific.
 //!
 //! Without this functionality, a user will always have to create their own error responses and
 //! manually return them, without the convenience of Rust's built-in `Result` and `?` operator.
+//!
+//! For cases when you want to have more control over an "error" response, it's suggested to just
+//! build a normal response with `ResponseWriter`. For example, a 500 on database disconnection
+//! will work well with a Glitch, but informing a user that they've exceeded their x number of
+//! allotted api requests might use `ResponseWriter` to craft a json body.
 //!
 //! ## Functionality
 //! A `Glitch` allows you to:
@@ -35,6 +40,10 @@ pub type Result<T> = std::result::Result<T, Glitch>;
 // similar to inner_response, but with string-only body
 /// Glitch is designed to be the error response for tophat. Users can either create them manually,
 /// or use `GlitchExt` to easily convert from `std::error::Error`.
+///
+/// Note that if you create a message or error, they will be converted to a message string, and the
+/// content-type will be set to `text/plain`. For more control over the response, use
+/// `ResponseWriter`.
 #[derive(Debug)]
 pub struct Glitch {
     pub(crate) status: Option<StatusCode>,
@@ -140,9 +149,16 @@ impl Glitch {
             }
         }
 
+        // as a default, set header to content-type text/plain if there's a message or trace.
+        let mut headers = self.headers.unwrap_or_else(HeaderMap::new);
+        if !msg.is_empty() {
+            headers.insert(http::header::CONTENT_TYPE, "text/plain".parse().unwrap());
+        }
+
+
         InnerResponse {
             status: self.status.unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
-            headers: self.headers.unwrap_or_else(HeaderMap::new),
+            headers,
             version: self.version.unwrap_or(Version::HTTP_11),
             body: msg.into(),
         }
