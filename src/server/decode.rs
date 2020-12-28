@@ -12,6 +12,7 @@ use http::{
     header::{self, HeaderName, HeaderValue},
 };
 use std::fmt;
+use tracing::debug;
 
 use crate::body::Body;
 use crate::chunked::ChunkedDecoder;
@@ -230,7 +231,6 @@ impl fmt::Display for DecodeFail {
 }
 
 pub(crate) fn fail_to_response_and_log(fail: &DecodeFail) -> Option<InnerResponse> {
-    use log::*;
     use DecodeFail::*;
 
     // TODO improve logging message
@@ -245,7 +245,6 @@ pub(crate) fn fail_to_response_and_log(fail: &DecodeFail) -> Option<InnerRespons
 }
 
 pub(crate) fn fail_to_crate_err(fail: DecodeFail) -> Option<ServerError> {
-    use log::*;
     use DecodeFail::*;
 
     // TODO improve logging message

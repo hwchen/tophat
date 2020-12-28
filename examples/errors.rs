@@ -14,7 +14,7 @@ use tophat::{
 };
 
 fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
-    pretty_env_logger::init();
+    tracing_subscriber::fmt::init();
 
     let router = Router::build()
         .data("Data from datastore")

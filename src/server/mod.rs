@@ -68,7 +68,7 @@ where
             match timeout(timeout_duration, req_fut).await {
                 Ok(Ok(Some(r))) => r,
                 Ok(Ok(None)) | Err(TimeoutError { .. }) => {
-                    log::debug!("Timeout Error");
+                    //debug!("Timeout Error");
                     break; // EOF or timeout
                 }
                 Ok(Err(err)) => {

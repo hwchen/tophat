@@ -10,6 +10,7 @@ use http::header;
 use httpdate::fmt_http_date;
 use std::pin::Pin;
 use std::task::{Context, Poll};
+use tracing::trace;
 
 use crate::chunked::ChunkedEncoder;
 
@@ -120,7 +121,7 @@ impl Encoder {
                 }
                 None => {
                     self.state = EncoderState::ChunkedBody;
-                    log::trace!("Server response encoding: chunked body");
+                    trace!("Server response encoding: chunked body");
                     self.encode_chunked_body(cx, buf)
                 }
             }

@@ -3,6 +3,7 @@ use http::{header::HOST, Method, Request};
 use std::io;
 use std::pin::Pin;
 use std::task::{Context, Poll};
+use tracing::trace;
 
 use super::{error, ClientError};
 use crate::Body;
@@ -49,7 +50,7 @@ impl Encoder {
         }
 
         let val = format!("{} {} HTTP/1.1\r\n", req.method(), url);
-        log::trace!("> {}", &val);
+        trace!("> {}", &val);
         buf.write_all(val.as_bytes())
             .await
             .map_err(error::encode_io)?;
@@ -65,7 +66,7 @@ impl Encoder {
                 format!("host: {}\r\n", host)
             };
 
-            log::trace!("> {}", &val);
+            trace!("> {}", &val);
             buf.write_all(val.as_bytes())
                 .await
                 .map_err(error::encode_io)?;
@@ -74,7 +75,7 @@ impl Encoder {
         // Insert Proxy-Connection header when method is CONNECT
         if req.method() == Method::CONNECT {
             let val = "proxy-connection: keep-alive\r\n".to_owned();
-            log::trace!("> {}", &val);
+            trace!("> {}", &val);
             buf.write_all(val.as_bytes())
                 .await
                 .map_err(error::encode_io)?;
@@ -84,7 +85,7 @@ impl Encoder {
         // send all items in chunks.
         if let Some(len) = req.body().length {
             let val = format!("content-length: {}\r\n", len);
-            log::trace!("> {}", &val);
+            trace!("> {}", &val);
             buf.write_all(val.as_bytes())
                 .await
                 .map_err(error::encode_io)?;

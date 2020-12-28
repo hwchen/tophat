@@ -16,7 +16,7 @@ use tophat::{
 const S_500: StatusCode = StatusCode::INTERNAL_SERVER_ERROR;
 
 fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
-    pretty_env_logger::init();
+    tracing_subscriber::fmt::init();
 
     let opts = ServerOpts {
         timeout: Some(std::time::Duration::from_secs(60)),

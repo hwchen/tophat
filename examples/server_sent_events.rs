@@ -8,7 +8,7 @@ use std::time::Duration;
 use tophat::server::accept;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    pretty_env_logger::init();
+    tracing_subscriber::fmt::init();
 
     let ping_machine = Arc::new(Mutex::new(PingMachine {
         broadcasters: Vec::new(),

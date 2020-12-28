@@ -19,7 +19,7 @@ use tophat::{
 };
 
 fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
-    pretty_env_logger::init();
+    tracing_subscriber::fmt::init();
 
     let cors = Arc::new(Cors {
         allow_origin: "*".to_owned(),

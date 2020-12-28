@@ -2,11 +2,11 @@
 #![allow(clippy::len_zero)]
 #![allow(clippy::manual_saturating_arithmetic)]
 
-use std::io;
-use std::pin::Pin;
-
 use futures_core::task::{Context, Poll};
 use futures_io::AsyncBufRead;
+use std::io;
+use std::pin::Pin;
+use tracing::trace;
 
 use crate::body::Body;
 
@@ -91,7 +91,7 @@ impl ChunkedEncoder {
     /// Switch the internal state to a new state.
     fn set_state(&mut self, state: State) {
         use State::*;
-        log::trace!("ChunkedEncoder state: {:?} -> {:?}", self.state, state);
+        trace!("ChunkedEncoder state: {:?} -> {:?}", self.state, state);
 
         #[cfg(debug_assertions)]
         match self.state {
@@ -185,7 +185,7 @@ impl ChunkedEncoder {
         self.bytes_written += CRLF_LEN;
 
         // Finally return how many bytes we've written to the buffer.
-        log::trace!("sending {} bytes", self.bytes_written);
+        trace!("sending {} bytes", self.bytes_written);
         Poll::Ready(Ok(self.bytes_written))
     }
 

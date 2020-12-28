@@ -5,6 +5,7 @@ use http::{
     status::StatusCode,
     version::Version,
 };
+use tracing::error;
 
 use crate::body::Body;
 use crate::response::Response;
@@ -66,7 +67,7 @@ impl InnerResponse {
             Err(err) => {
                 // only log, don't break connection here. If connection is really closed, then the
                 // next decode will break the loop receiving requests
-                log::error!("Error sending response: {}", err);
+                error!("Error sending response: {}", err);
                 return Err(err);
             }
         };
