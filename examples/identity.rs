@@ -1,7 +1,7 @@
 use async_dup::Arc;
 use futures_util::io::{AsyncRead, AsyncWrite};
 use http::Method;
-use smol::{Async, Task};
+use smol::Async;
 use std::net::TcpListener;
 use std::time::Duration;
 use tophat::{

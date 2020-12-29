@@ -118,8 +118,7 @@ impl<W> ResponseWriter<W>
 where
     W: AsyncWrite + Clone + Send + Sync + Unpin + 'static,
 {
-    /// send response, and TODO return number of bytes written (I guess this would be a struct for more
-    /// complicated sends, like with compression)
+    /// send response, and return number of bytes written
     pub async fn send(self) -> Result<ResponseWritten, Glitch> {
         let (parts, body) = self.response.into_parts();
 
