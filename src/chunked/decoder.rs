@@ -2,6 +2,8 @@
 #![allow(clippy::len_zero)]
 #![allow(clippy::reversed_empty_ranges)]
 
+use byte_pool::{Block, BytePool};
+use futures_lite::AsyncRead;
 use http::header::{HeaderName, HeaderValue};
 use std::fmt;
 use std::future::Future;
@@ -10,9 +12,6 @@ use std::ops::Range;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
-
-use byte_pool::{Block, BytePool};
-use futures_io::AsyncRead;
 
 use crate::trailers::{Trailers, TrailersSender};
 
@@ -520,7 +519,7 @@ fn decode_trailer(buffer: Block<'static>, pos: &Range<usize>) -> io::Result<Deco
 mod tests {
     use super::*;
 
-    use futures_util::io::AsyncReadExt;
+    use futures_lite::AsyncReadExt;
 
     #[test]
     fn test_chunked_wiki() {

@@ -1,6 +1,6 @@
 use async_dup::{Arc, Mutex};
-use futures_core::Stream;
-use smol::{Async, Task};
+use futures::Stream;
+use smol::Async;
 use std::net::TcpListener;
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -14,9 +14,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         broadcasters: Vec::new(),
     }));
 
-    let listener = Async::<TcpListener>::bind("127.0.0.1:9999")?;
+    let listener = Async::<TcpListener>::bind(([127,0,0,1],9999))?;
 
-    let ping_task = smol::Task::spawn({
+    let ping_task = smol::spawn({
         let ping_machine = ping_machine.clone();
         async move {
             loop {
@@ -27,14 +27,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
     ping_task.detach();
 
-    smol::run(async {
+    smol::block_on(async {
         loop {
             let (stream, _) = listener.accept().await?;
             let stream = Arc::new(stream);
 
             let ping_machine = ping_machine.clone();
 
-            let task = Task::spawn(async move {
+            let task = smol::spawn(async move {
                 let serve = accept(stream, |_req, mut resp_wtr| async {
                     let client = ping_machine.lock().add_client();
                     resp_wtr.set_sse(client);

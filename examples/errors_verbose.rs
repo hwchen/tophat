@@ -1,7 +1,7 @@
 use async_dup::Arc;
 use futures_util::io::{AsyncRead, AsyncWrite};
 use http::{Method, StatusCode};
-use smol::{Async, Task};
+use smol::Async;
 use std::net::TcpListener;
 use tophat::{
     server::{
@@ -34,9 +34,9 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         .at(Method::GET, "/missing_data", missing_data)
         .finish();
 
-    let listener = Async::<TcpListener>::bind("127.0.0.1:9999")?;
+    let listener = Async::<TcpListener>::bind(([127,0,0,1],9999))?;
 
-    smol::run(async {
+    smol::block_on(async {
         loop {
             let router = router.clone();
             let opts = opts.clone();
@@ -44,7 +44,7 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
             let (stream, _) = listener.accept().await?;
             let stream = Arc::new(stream);
 
-            let task = Task::spawn(async move {
+            let task = smol::spawn(async move {
                 let serve = accept_with_opts(stream, opts, |req, resp_wtr| async {
                     let res = router.route(req, resp_wtr).await;
                     res

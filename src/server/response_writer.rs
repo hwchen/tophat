@@ -1,4 +1,4 @@
-use futures_io::AsyncWrite;
+use futures_lite::{io, AsyncWrite};
 use futures_util::TryStreamExt;
 use http::{
     header::{HeaderMap, HeaderValue, IntoHeaderName},
@@ -56,13 +56,13 @@ impl InnerResponse {
         }
     }
 
-    pub(crate) async fn send<W>(self, writer: W) -> Result<ResponseWritten, futures_io::Error>
+    pub(crate) async fn send<W>(self, writer: W) -> Result<ResponseWritten, std::io::Error>
     where
         W: AsyncWrite + Clone + Send + Sync + Unpin + 'static,
     {
         let mut encoder = Encoder::encode(self);
         let mut writer = writer;
-        let bytes_written = match futures_util::io::copy(&mut encoder, &mut writer).await {
+        let bytes_written = match io::copy(&mut encoder, &mut writer).await {
             Ok(b) => b,
             Err(err) => {
                 // only log, don't break connection here. If connection is really closed, then the
@@ -235,9 +235,9 @@ where
     /// Adds the content-type header for SSE.
     ///
     /// Takes a `futures::Stream`, and `futures::TryStreamExt` must be in scope.
-    pub fn set_sse<S: 'static>(&mut self, stream: S)
+    pub fn set_sse<S>(&mut self, stream: S)
     where
-        S: TryStreamExt<Error = std::io::Error> + Send + Sync + Unpin,
+        S: TryStreamExt<Error = std::io::Error> + Send + Sync + Unpin + 'static,
         S::Ok: AsRef<[u8]> + Send + Sync,
     {
         let stream = stream.into_async_read();

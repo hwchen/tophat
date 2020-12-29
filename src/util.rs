@@ -1,4 +1,4 @@
-use futures_io::{AsyncBufRead, AsyncRead, AsyncWrite};
+use futures_lite::{AsyncBufRead, AsyncRead, AsyncWrite};
 use std::io;
 use std::pin::Pin;
 use std::task::{Context, Poll};

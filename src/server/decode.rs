@@ -5,8 +5,7 @@
 // - upgrade
 // etc.
 
-use futures_io::{AsyncRead, AsyncWrite};
-use futures_util::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
+use futures_lite::{io::BufReader, AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use http::{
     request::Builder,
     header::{self, HeaderName, HeaderValue},

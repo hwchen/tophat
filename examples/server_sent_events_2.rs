@@ -1,6 +1,6 @@
 use async_dup::Arc;
-use futures_core::Stream;
-use smol::{Async, Task};
+use futures::Stream;
+use smol::Async;
 use std::net::TcpListener;
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -10,14 +10,14 @@ use tophat::server::accept;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt::init();
 
-    let listener = Async::<TcpListener>::bind("127.0.0.1:9999")?;
+    let listener = Async::<TcpListener>::bind(([127,0,0,1],9999))?;
 
-    smol::run(async {
+    smol::block_on(async {
         loop {
             let (stream, _) = listener.accept().await?;
             let stream = Arc::new(stream);
 
-            let task = Task::spawn(async move {
+            let task = smol::spawn(async move {
                 let serve = accept(stream, |_req, mut resp_wtr| async {
                     let (tx, rx) = async_channel::bounded(100);
                     let client = Client(rx);
@@ -27,7 +27,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     // endpoint.
                     let (tx_res, rx_res) = async_channel::bounded(1);
 
-                    smol::Task::spawn(async move {
+                    smol::spawn(async move {
                         let sse_res = resp_wtr.send().await;
                         let _ = tx_res.send(sse_res).await;
                     })

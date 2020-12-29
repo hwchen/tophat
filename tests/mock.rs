@@ -3,7 +3,7 @@
 //! Test Client for testing server
 //! Test Server for testing client
 
-use futures_io::{AsyncBufRead, AsyncRead, AsyncWrite};
+use futures_lite::{AsyncBufRead, AsyncRead, AsyncWrite};
 use std::io;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};

@@ -4,7 +4,7 @@ use std::env;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv::dotenv().ok();
-    smol::run(async move {
+    smol::block_on(async move {
         let db_url = env::var("DATABASE_URL").expect("no db env var found");
         let pool = PgPool::builder()
             .max_size(5)

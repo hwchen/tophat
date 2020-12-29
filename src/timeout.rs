@@ -4,12 +4,12 @@ use std::error::Error;
 use std::fmt;
 use std::future::Future;
 use std::pin::Pin;
+use std::task::{Context, Poll};
 use std::time::Duration;
 
 use futures_timer::Delay;
 use pin_project_lite::pin_project;
 
-use futures_core::task::{Context, Poll};
 
 pub(crate) async fn timeout<F, T>(dur: Duration, f: F) -> Result<T, TimeoutError>
 where

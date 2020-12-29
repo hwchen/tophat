@@ -16,29 +16,28 @@ all-features = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-async-channel = "1.1.0"
-async-dup = "1.0.1"
-byte-pool = "0.2.1"
-futures-core = "0.3.4"
-futures-io = "0.3.4"
+async-channel = "1.5.1"
+async-dup = "1.2.2"
+byte-pool = "0.2.2"
+futures-lite = "1.11.3"
 futures-timer = "3.0.2"
-futures-util = "0.3.4"
-http = "0.2.1"
+futures-util = { version = "0.3.8", features = ["io"] }
+http = "0.2.2"
 httpdate = "0.3.2"
 httparse = "1.3.4"
 lazy_static = "1.4.0"
-pin-project-lite = "0.1.4"
+pin-project-lite = "0.2.0"
 tracing = "0.1.22"
 
 # for router
-path-tree = { version = "0.1.9", optional = true }
+path-tree = { version = "0.1.12", optional = true }
 type-map = { version = "0.3.0", optional = true }
 
 # for identity
-cookie = { version = "0.13.3", optional = true }
-jsonwebtoken = { version = "7.1.0", optional = true }
-serde = { version = "1.0.110", features = ["derive"], optional = true }
-time = { version = "0.2.16", default_features = false, optional = true }
+cookie = { version = "0.14.3", optional = true }
+jsonwebtoken = { version = "7.2.0", optional = true }
+serde = { version = "1.0.118", features = ["derive"], optional = true }
+time = { version = "0.2.23", default_features = false, optional = true }
 
 # for cors (maybe use elsewhere?)
 headers = { version = "0.3.2", optional = true }
@@ -62,10 +61,12 @@ identity = [
 ]
 
 [dev-dependencies]
-async-channel = "1.1.0"
-async-dup = "1.0.1"
+async-channel = "1.5.1"
+async-dup = "1.2.2"
+easy-parallel = "3.1.0"
+futures = "0.3.8"
 num_cpus = "1.13.0"
-smol = "0.1.4"
+smol = "1.2.5"
 tracing-subscriber = "0.2.15"
 
 [[example]]

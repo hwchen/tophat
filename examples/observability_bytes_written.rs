@@ -1,20 +1,20 @@
 use async_dup::Arc;
 use http::header;
-use smol::{Async, Task};
+use smol::Async;
 use std::net::TcpListener;
 use tophat::server::accept;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt::init();
 
-    let listener = Async::<TcpListener>::bind("127.0.0.1:9999")?;
+    let listener = Async::<TcpListener>::bind(([127,0,0,1],9999))?;
 
-    smol::run(async {
+    smol::block_on(async {
         loop {
             let (stream, _) = listener.accept().await?;
             let stream = Arc::new(stream);
 
-            let task = Task::spawn(async move {
+            let task = smol::spawn(async move {
                 let serve = accept(stream, |req, mut resp_wtr| async {
                     println!("{:?}", *req.uri());
                     println!("{:?}", req.version());

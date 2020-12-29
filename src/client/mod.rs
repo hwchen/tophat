@@ -4,7 +4,7 @@ mod decode;
 mod encode;
 mod error;
 
-use futures_util::io::{self, AsyncRead, AsyncWrite};
+use futures_lite::{io, AsyncRead, AsyncWrite};
 
 use crate::{Request, Response};
 use decode::decode;

@@ -8,5 +8,5 @@ edition = "2018"
 
 [dependencies]
 sqlx = { version = "0.3.5", path = "../../../sqlx", default-features = false, features = ["runtime-async-std", "postgres", "macros"] }
-smol = "0.1.10"
+smol = "1.2.5"
 dotenv = "0.15.0"

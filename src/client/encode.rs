@@ -1,4 +1,4 @@
-use futures_util::io::{AsyncRead, AsyncWriteExt};
+use futures_lite::{AsyncRead, AsyncWriteExt};
 use http::{header::HOST, Method, Request};
 use std::io;
 use std::pin::Pin;

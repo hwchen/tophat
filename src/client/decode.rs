@@ -1,8 +1,7 @@
 #![allow(clippy::nonminimal_bool)]
 #![allow(clippy::op_ref)]
 
-use futures_io::AsyncRead;
-use futures_util::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
+use futures_lite::{io::BufReader, AsyncBufReadExt, AsyncRead, AsyncReadExt};
 use http::{
     header::{HeaderMap, HeaderName, HeaderValue, CONTENT_LENGTH, DATE, TRANSFER_ENCODING},
     StatusCode,

@@ -5,7 +5,7 @@
 // But the final buffer ended up the same? I guess that sending the wrong number of bytes read
 // must have mucked up what the stream was reading back out.
 
-use futures_io::AsyncRead;
+use futures_lite::AsyncRead;
 use http::header;
 use httpdate::fmt_http_date;
 use std::pin::Pin;

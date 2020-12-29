@@ -14,8 +14,7 @@ mod response_writer;
 pub mod router;
 pub mod error;
 
-use futures_core::Future;
-use futures_io::{AsyncRead, AsyncWrite};
+use futures_lite::{AsyncRead, AsyncWrite, Future};
 use std::time::Duration;
 
 use crate::body::Body;

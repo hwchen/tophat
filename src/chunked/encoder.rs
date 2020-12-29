@@ -2,10 +2,10 @@
 #![allow(clippy::len_zero)]
 #![allow(clippy::manual_saturating_arithmetic)]
 
-use futures_core::task::{Context, Poll};
-use futures_io::AsyncBufRead;
+use futures_lite::AsyncBufRead;
 use std::io;
 use std::pin::Pin;
+use std::task::{Context, Poll};
 use tracing::trace;
 
 use crate::body::Body;

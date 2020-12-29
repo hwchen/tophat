@@ -32,16 +32,16 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         .at(Method::GET, "/", hello_user)
         .finish();
 
-    let listener = Async::<TcpListener>::bind("127.0.0.1:9999")?;
+    let listener = Async::<TcpListener>::bind(([127,0,0,1],9999))?;
 
-    smol::run(async {
+    smol::block_on(async {
         loop {
             let router = router.clone();
 
             let (stream, _) = listener.accept().await?;
             let stream = Arc::new(stream);
 
-            let task = Task::spawn(async move {
+            let task = smol::spawn(async move {
                 let serve = accept(stream, |req, resp_wtr| async {
                     let res = router.route(req, resp_wtr).await;
                     res
