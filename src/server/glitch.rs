@@ -165,12 +165,12 @@ impl Glitch {
     }
 
     /// Set status of a Glitch
-    pub fn status(&mut self, status: http::StatusCode) {
+    pub fn set_status(&mut self, status: http::StatusCode) {
         self.status = Some(status);
     }
 
     /// Add a message to a Glitch
-    pub fn message(&mut self, message: &str) {
+    pub fn set_message(&mut self, message: &str) {
         self.message = Some(message.into());
     }
 
@@ -234,7 +234,7 @@ where
     fn glitch(self, status: StatusCode) -> std::result::Result<T, Glitch> {
         self.map_err(|_| {
             let mut g = Glitch::new();
-            g.status(status);
+            g.set_status(status);
             g
         })
     }
@@ -259,7 +259,7 @@ impl<T> GlitchExt<T, Infallible> for Option<T> {
     fn glitch(self, status: StatusCode) -> std::result::Result<T, Glitch> {
         self.ok_or_else(|| {
             let mut g = Glitch::new();
-            g.status(status);
+            g.set_status(status);
             g
         })
     }
@@ -293,15 +293,15 @@ macro_rules! glitch (
     ($code:expr) => {
         {
             let mut g= Glitch::new();
-            g.status($code);
+            g.set_status($code);
             g
         }
     };
     ($code:expr, $context:expr) => {
         {
             let mut g= Glitch::new();
-            g.status($code);
-            g.message($context);
+            g.set_status($code);
+            g.set_message($context);
             g
         }
     };
@@ -329,8 +329,8 @@ macro_rules! glitch_code (
     ($code:expr, $context:expr) => {
         {
             let mut g= Glitch::new();
-            g.status(StatusCode::from_u16($code).unwrap());
-            g.message($context);
+            g.set_status(StatusCode::from_u16($code).unwrap());
+            g.set_message($context);
             g
         }
     };
