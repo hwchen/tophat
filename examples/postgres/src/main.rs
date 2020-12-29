@@ -19,7 +19,7 @@ fn main() -> Result<(), anyhow::Error> {
     dotenv::dotenv().ok();
     smol::block_on(async move {
         let db_url = env::var("DATABASE_URL").expect("no db env var found");
-        let mgr = Manager::new(&db_url).await?;
+        let mgr = Manager::new(&db_url)?;
         let pool = Pool::new(mgr, 16);
 
         let client = pool.get().await.expect("not sure why this one can't Into anyhow::Error");
@@ -46,7 +46,7 @@ struct Manager {
 }
 
 impl Manager {
-    async fn new(db_url: &str) -> Result<Self, anyhow::Error> {
+    fn new(db_url: &str) -> Result<Self, anyhow::Error> {
         let pg_config = db_url.parse()?;
 
         let db_url: url::Url = db_url.parse()?;
@@ -57,13 +57,10 @@ impl Manager {
             .unwrap_or(5432);
 
         // Connect to the host.
-        let socket_addr = {
-            let host = host.clone();
-            smol::unblock(move || (host.as_str(), port).to_socket_addrs())
-                .await?
-                .next()
-                .context("cannot resolve address")?
-        };
+        let socket_addr = (host.as_str(), port)
+            .to_socket_addrs()?
+            .next()
+            .context("cannot resolve address")?;
 
         Ok(Self {
             pg_config,
@@ -76,16 +73,14 @@ impl Manager {
 impl deadpool::managed::Manager<Client, anyhow::Error> for Manager {
     async fn create(&self) -> Result<Client, anyhow::Error> {
         let stream = Async::<TcpStream>::connect(self.socket_addr).await?;
-
         let stream = stream.compat_write();
         let (client, connection) = self.pg_config.connect_raw(stream, NoTls).await?;
-        let conn_task = smol::spawn(connection);
-        conn_task.detach();
+        smol::spawn(connection).detach();
 
         Ok(client)
     }
 
-    async fn recycle(&self, client: &mut Client) -> deadpool::managed::RecycleResult<anyhow::Error> {
+    async fn recycle(&self, client: &mut Client) -> Result<(), RecycleError> {
         if client.is_closed() {
             return Err(RecycleError::Message("Connection closed".to_string()));
         }
