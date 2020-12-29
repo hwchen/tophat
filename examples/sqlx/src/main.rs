@@ -1,16 +1,22 @@
+//! TODO double check... I'm using smol here, but maybe sqlx is just starting up async-std runtime
+//! and using that instead.
+//!
+//! This is the beginning of an example for database access.
+//!
+//! Still needs:
+//! - db creation hardcoded in.
+//! - web api from tophat.
+
 use sqlx::postgres::PgPool;
-//use sqlx::prelude::*;
 use std::env;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv::dotenv().ok();
     smol::block_on(async move {
         let db_url = env::var("DATABASE_URL").expect("no db env var found");
-        let pool = PgPool::builder()
-            .max_size(5)
-            .build(&db_url).await?;
+        let pool = PgPool::connect(&db_url).await?;
 
-        struct Country { country: String, count: i64 }
+        struct Country { country: Option<String>, count: Option<i64> }
         let organization = "Apple";
 
         let countries = sqlx::query_as!(
@@ -26,8 +32,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         //assert_eq!(row.0, 150);
 
         for country in countries {
-            println!("{}", country.country);
-            println!("{}", country.count);
+            println!("{:?}", country.country);
+            println!("{:?}", country.count);
         }
 
         Ok::<_, sqlx::Error>(())
