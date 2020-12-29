@@ -1,0 +1,17 @@
+[package]
+name = "postgres-example"
+version = "0.1.0"
+authors = ["Walther Chen <walther.chen@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.37"
+async-trait = "0.1.42"
+deadpool = "0.7.0"
+dotenv = "0.15.0"
+smol = "1.2.5"
+tokio-postgres = { version = "0.7.0", default_featues = false }
+tokio-util = { version = "0.6.0", features = ["compat"] }
+url = "2.2.0"
