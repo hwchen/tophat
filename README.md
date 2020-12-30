@@ -7,7 +7,7 @@ A small, pragmatic, and flexible async HTTP server library. Currently in beta.
 
 Cargo.toml:
 ```
-tophat = "0.2.1"
+tophat = "0.3.0"
 ```
 
 The goal is to be low-level and small enough to work with different async runtimes and not dictate user architecture, while having enough convenience functions to still easily build a REST api. More library than framework.
