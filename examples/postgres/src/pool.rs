@@ -4,6 +4,7 @@ use smol::Async;
 use std::net::{TcpStream, ToSocketAddrs};
 use tokio_postgres::{tls::NoTls, Client};
 use tokio_util::compat::FuturesAsyncWriteCompatExt;
+use tracing::debug;
 
 pub(crate) type Pool = deadpool::managed::Pool<Client, Error>;
 pub (crate) type RecycleError = deadpool::managed::RecycleError<Error>;
@@ -40,6 +41,7 @@ impl Manager {
 #[async_trait]
 impl deadpool::managed::Manager<Client, Error> for Manager {
     async fn create(&self) -> Result<Client, Error> {
+        debug!("Pool: create client");
         let stream = Async::<TcpStream>::connect(self.socket_addr).await?;
         let stream = stream.compat_write();
         let (client, connection) = self.pg_config.connect_raw(stream, NoTls).await?;
@@ -49,6 +51,7 @@ impl deadpool::managed::Manager<Client, Error> for Manager {
     }
 
     async fn recycle(&self, client: &mut Client) -> Result<(), RecycleError> {
+        debug!("Pool: recycle client");
         if client.is_closed() {
             return Err(RecycleError::Message("Connection closed".to_string()));
         }
