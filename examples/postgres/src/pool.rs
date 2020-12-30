@@ -1,3 +1,8 @@
+//! Pool for db connections
+//!
+//! Based on deadpool-postgres. For more config and features (like prepared statements), use its
+//! implementation as a starting point.
+
 use anyhow::Context as _;
 use async_trait::async_trait;
 use smol::Async;
