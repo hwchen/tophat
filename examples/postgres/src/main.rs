@@ -1,9 +1,3 @@
-//! This is the beginning of an example for database access.
-//!
-//! Still needs:
-//! - db creation hardcoded in.
-//! - web api from tophat.
-
 mod pool;
 
 use async_dup::Arc;
@@ -36,8 +30,8 @@ fn main() -> Result<(), anyhow::Error> {
     // router setup
     let router = Router::build()
         .data(pool)
-        //.at(Method::GET, "/:name", hello_user)
-        .at(Method::GET, "/", get_user_count_by_country_and_org)
+        .at(Method::GET, "/", index)
+        .at(Method::GET, "/planet/count", get_user_count_by_planet)
         .finish();
 
     let listener = Async::<TcpListener>::bind(([127,0,0,1],9999))?;
@@ -66,7 +60,7 @@ fn main() -> Result<(), anyhow::Error> {
     })
 }
 
-async fn get_user_count_by_country_and_org<W>(req: Request, mut resp_wtr: ResponseWriter<W>) -> glitch::Result<ResponseWritten>
+async fn get_user_count_by_planet<W>(req: Request, mut resp_wtr: ResponseWriter<W>) -> glitch::Result<ResponseWritten>
 where
     W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
 {
@@ -74,17 +68,25 @@ where
 
     let client = pool.get().await?;
 
-    let stmt = "SELECT country, COUNT(*) as count FROM users WHERE organization = 'Apple' GROUP BY country";
+    let stmt = "SELECT planet, COUNT(*)::integer as count FROM test_users GROUP BY planet";
     let rows = client.query(stmt, &[]).await?;
 
     let body = rows.iter()
         .map(|r| {
             let country: &str = r.get(0);
             let count: i32 = r.get(1);
-            format!("{}::{},", country, count)
+            format!("{},{}\n", country, count)
         }).collect();
 
     resp_wtr.set_text(body);
 
+    resp_wtr.send().await
+}
+
+async fn index<W>(_req: Request, mut resp_wtr: ResponseWriter<W>) -> glitch::Result<ResponseWritten>
+where
+    W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
+{
+    resp_wtr.set_text("still alive".into());
     resp_wtr.send().await
 }
