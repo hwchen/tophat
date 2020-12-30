@@ -1,91 +1,90 @@
-//! TODO double check... I'm using smol here, but maybe sqlx is just starting up async-std runtime
-//! and using that instead.
-//!
 //! This is the beginning of an example for database access.
 //!
 //! Still needs:
 //! - db creation hardcoded in.
 //! - web api from tophat.
 
-use anyhow::Context as _;
-use async_trait::async_trait;
-use tokio_postgres::{tls::NoTls, Client};
-use tokio_util::compat::FuturesAsyncWriteCompatExt;
+mod pool;
+
+use async_dup::Arc;
+use futures_lite::{AsyncRead, AsyncWrite};
+use http::Method;
 use smol::Async;
 use std::env;
-use std::net::{TcpStream, ToSocketAddrs};
+use std::net::TcpListener;
+use tophat::{
+    server::{
+        accept,
+        glitch,
+        router::{Router, RouterRequestExt},
+        ResponseWriter, ResponseWritten,
+    },
+    Request,
+};
+
+use pool::{Pool, Manager};
 
 fn main() -> Result<(), anyhow::Error> {
     dotenv::dotenv().ok();
-    smol::block_on(async move {
-        let db_url = env::var("DATABASE_URL").expect("no db env var found");
-        let mgr = Manager::new(&db_url)?;
-        let pool = Pool::new(mgr, 16);
+    tracing_subscriber::fmt::init();
 
-        let client = pool.get().await.expect("not sure why this one can't Into anyhow::Error");
+    // db setup
+    let db_url = env::var("DATABASE_URL").expect("no db env var found");
+    let mgr = Manager::new(&db_url)?;
+    let pool = Pool::new(mgr, 16);
 
-        let stmt = "SELECT country, COUNT(*) as count FROM users WHERE organization = 'Apple' GROUP BY country";
-        let rows = client.query(stmt, &[]).await?;
+    // router setup
+    let router = Router::build()
+        .data(pool)
+        //.at(Method::GET, "/:name", hello_user)
+        .at(Method::GET, "/", get_user_count_by_country_and_org)
+        .finish();
 
-        for row in rows {
-            println!("{:?}", row);
+    let listener = Async::<TcpListener>::bind(([127,0,0,1],9999))?;
+
+    smol::block_on(async {
+        loop {
+            let router = router.clone();
+
+            let (stream, _) = listener.accept().await?;
+            let stream = Arc::new(stream);
+
+            let task = smol::spawn(async move {
+                let serve = accept(stream, |req, resp_wtr| async {
+                    let res = router.route(req, resp_wtr).await;
+                    res
+                })
+                .await;
+
+                if let Err(err) = serve {
+                    eprintln!("Error: {}", err);
+                }
+            });
+
+            task.detach();
         }
-
-        Ok::<_, anyhow::Error>(())
-    })?;
-
-    Ok(())
+    })
 }
 
-type Pool = deadpool::managed::Pool<Client, anyhow::Error>;
-type RecycleError = deadpool::managed::RecycleError<anyhow::Error>;
+async fn get_user_count_by_country_and_org<W>(req: Request, mut resp_wtr: ResponseWriter<W>) -> glitch::Result<ResponseWritten>
+where
+    W: AsyncRead + AsyncWrite + Clone + Send + Sync + Unpin + 'static,
+{
+    let pool = req.data::<Pool>().unwrap();
 
-struct Manager {
-    pg_config: tokio_postgres::config::Config,
-    socket_addr: std::net::SocketAddr,
-}
+    let client = pool.get().await?;
 
-impl Manager {
-    fn new(db_url: &str) -> Result<Self, anyhow::Error> {
-        let pg_config = db_url.parse()?;
+    let stmt = "SELECT country, COUNT(*) as count FROM users WHERE organization = 'Apple' GROUP BY country";
+    let rows = client.query(stmt, &[]).await?;
 
-        let db_url: url::Url = db_url.parse()?;
-        // Figure out the host and the port.
-        let host = db_url.host().context("cannot parse host")?.to_string();
-        let port = db_url
-            .port()
-            .unwrap_or(5432);
+    let body = rows.iter()
+        .map(|r| {
+            let country: &str = r.get(0);
+            let count: i32 = r.get(1);
+            format!("{}::{},", country, count)
+        }).collect();
 
-        // Connect to the host.
-        let socket_addr = (host.as_str(), port)
-            .to_socket_addrs()?
-            .next()
-            .context("cannot resolve address")?;
+    resp_wtr.set_text(body);
 
-        Ok(Self {
-            pg_config,
-            socket_addr,
-        })
-    }
-}
-
-#[async_trait]
-impl deadpool::managed::Manager<Client, anyhow::Error> for Manager {
-    async fn create(&self) -> Result<Client, anyhow::Error> {
-        let stream = Async::<TcpStream>::connect(self.socket_addr).await?;
-        let stream = stream.compat_write();
-        let (client, connection) = self.pg_config.connect_raw(stream, NoTls).await?;
-        smol::spawn(connection).detach();
-
-        Ok(client)
-    }
-
-    async fn recycle(&self, client: &mut Client) -> Result<(), RecycleError> {
-        if client.is_closed() {
-            return Err(RecycleError::Message("Connection closed".to_string()));
-        }
-        // "fast" recycling method from doesn't run a query
-        //client.simple_query(None).await
-        Ok(())
-    }
+    resp_wtr.send().await
 }
